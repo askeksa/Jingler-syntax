@@ -1,0 +1,38 @@
+{
+    "name": "jingler-syntax",
+    "displayName": "Jingler",
+    "publisher": "ASMotor",
+    "description": "Syntax highlighting for the Zing language used in Jingler",
+    "icon": "",
+    "version": "1.0.0",
+    "engines": {
+        "vscode": "^1.36.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "zing",
+                "aliases": [
+                    "Zing"
+                ],
+                "extensions": [
+                    ".zing"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "zing",
+                "scopeName": "source.zing",
+                "path": "./syntaxes/zing.tmLanguage.json"
+            }
+        ]
+    },
+    "dependencies": {
+        "@vscode/vsce": "^2.18.0"
+    }
+}

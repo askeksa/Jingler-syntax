@@ -1,0 +1,59 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Zing",
+	"scopeName": "source.zing",
+	"patterns": [
+		{ "include": "#comments" },
+		{ "include": "#constant-numeric-hex" },
+		{ "include": "#constant-numeric-decimal" },
+		{ "include": "#keywords-operators" },
+		{ "include": "#parameter" },
+		{ "include": "#storage-type" },
+		{ "include": "#support-function" },
+		{ "include": "#identifier" }
+	],
+	"repository": {
+		"comments": {
+			"name": "comment.line.zing",
+			"match": "(#.*)$"
+		},
+		"constant-numeric-hex": {
+			"name": "constant.numeric.zing",
+			"match": "(0x[0-9a-fA-F]+(\\.[0-9a-fA-F]*)?)"
+		},
+		"constant-numeric-decimal": {
+			"name": "constant.numeric.zing",
+			"match": "([0-9]+)"
+		},
+		"keywords-operators": {
+			"name": "keyword.operator.zing",
+			"match": "(-|!|\\+|\\*|/|&|\\||\\^|==|!=|<|<=|>|>=|\\?|:)"
+		},
+		"storage-type": {
+			"name": "storage.type",
+			"match": "\\b(function|mono|stereo|generic)\\b"
+		},
+		"support-function": {
+			"name": "support.function",
+			"match": "(atan2|ceil|cos|exp2|floor|max|min|mlog2|round|sin|sqrt|tan|trunc)"
+		},
+		"parameter": {
+			"match": "([A-Za-z_][A-Za-z0-9_]*)[ \\t]*(:)[ \\t]*(mono|stereo|generic)",
+			"captures": {
+				"1": {
+					"name": "variable.parameter"
+				},
+				"2": {
+					"name": "keyword.operator.zing"
+				},
+				"3": {
+					"name": "storage.type"
+				}
+			}
+		},
+		"identifier": {
+			"name": "entity.name.function",
+			"match": "([A-Za-z_][A-Za-z0-9_]*)"
+		}
+	}
+}

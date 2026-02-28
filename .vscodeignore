@@ -1,0 +1,9 @@
+.git
+.vscode/**
+.vscode-test/**
+.gitignore
+node_modules/
+src/
+out/*.map
+vsc-extension-quickstart.md
+.justfile
