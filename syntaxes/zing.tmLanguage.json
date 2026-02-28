@@ -5,11 +5,19 @@
 	"patterns": [
 		{ "include": "#comments" },
 		{ "include": "#constant-numeric-hex" },
+		{ "include": "#strings" },
 		{ "include": "#constant-numeric-decimal" },
-		{ "include": "#keywords-operators" },
-		{ "include": "#parameter" },
+		{ "include": "#function" },
+		{ "include": "#function-call" },
+		{ "include": "#method-call" },
+		{ "include": "#toplevel" },
+		{ "include": "#toplevel-modifier" },
+		{ "include": "#storage-width" },
+		{ "include": "#storage-scope" },
 		{ "include": "#storage-type" },
+		{ "include": "#for" },
 		{ "include": "#support-function" },
+		{ "include": "#keywords-operators" },
 		{ "include": "#identifier" }
 	],
 	"repository": {
@@ -17,43 +25,172 @@
 			"name": "comment.line.zing",
 			"match": "(#.*)$"
 		},
+
+		"strings": {
+			"name": "string.quoted.double.zing",
+			"match": "\\\"([^\\\"])*\\\""
+		},
+
 		"constant-numeric-hex": {
 			"name": "constant.numeric.zing",
-			"match": "(0x[0-9a-fA-F]+(\\.[0-9a-fA-F]*)?)"
+			"match": "\\b(0x[0-9a-fA-F]+(\\.[0-9a-fA-F]*)?)\\b"
 		},
+
 		"constant-numeric-decimal": {
 			"name": "constant.numeric.zing",
-			"match": "([0-9]+)"
+			"match": "\\b([0-9]+)\\b"
 		},
+
 		"keywords-operators": {
 			"name": "keyword.operator.zing",
-			"match": "(-|!|\\+|\\*|/|&|\\||\\^|==|!=|<|<=|>|>=|\\?|:)"
+			"match": "(-|!|\\+|\\*|/|&|\\||\\^|==|!=|<|<=|>|>=|->|\\?|\\.|::|:)"
 		},
+
+		"toplevel": {
+			"name": "storage.type.zing.toplevel",
+			"match": "\\b(include|parameter|module|function|instrument|note|global)\\b"
+		},
+
+		"toplevel-modifier": {
+			"name": "storage.modifier.zing.toplevel",
+			"match": "\\b(note|global)\\b"
+		},
+
+		"storage-scope": {
+			"name": "entity.name.type.zing.scope",
+			"match": "\\b(static|dynamic)\\b"
+		},
+
+		"storage-width": {
+			"name": "entity.name.type.zing.width",
+			"match": "\\b(mono|stereo|generic)\\b"
+		},
+
 		"storage-type": {
-			"name": "storage.type",
-			"match": "\\b(function|mono|stereo|generic)\\b"
+			"name": "entity.name.type.zing.type",
+			"match": "\\b(number|bool|buffer)\\b"
 		},
-		"support-function": {
-			"name": "support.function",
-			"match": "(atan2|ceil|cos|exp2|floor|max|min|mlog2|round|sin|sqrt|tan|trunc)"
-		},
-		"parameter": {
-			"match": "([A-Za-z_][A-Za-z0-9_]*)[ \\t]*(:)[ \\t]*(mono|stereo|generic)",
+
+		"function": {
+			"match": "\\b(instrument|function|module)[ \\t]*([A-Za-z_][A-Za-z0-9_]*)\\b",
 			"captures": {
 				"1": {
-					"name": "variable.parameter"
+					"name": "storage.type.function"
+				},
+				"2": {
+					"name": "entity.name.function"
+				}
+			}
+		},
+
+		"method-call": {
+			"match": "(\\.)[ \\t]*([A-Za-z_][A-Za-z0-9_]*)",
+			"captures": {
+				"1": {
+					"name": "keyword.operator.zing"
+				},
+				"2": {
+					"name": "entity.name.function"
+				}
+			}
+		},
+
+		"function-call": {
+			"match": "\\b([A-Za-z_][A-Za-z0-9_]*)[ \\t]*(\\()",
+			"captures": {
+				"1": {
+					"name": "entity.name.function"
+				},
+				"2": {
+					"name": "keyword.operator.zing"
+				}
+			}
+		},
+
+		"support-function": {
+			"name": "support.function",
+			"match": "\\b(atan2|ceil|cos|exp2|floor|max|min|mlog2|round|sin|sqrt|tan|trunc|random|center|left|right|cell|delay|dyndelay|samplerate|gate|key|velocity)\\b"
+		},
+
+		"for": {
+			"name": "keyword.control.zing",
+			"match": "\\b(for|to)\\b"
+		},		
+
+		"identifier": {
+			"name": "entity.name.variable",
+			"match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\b"
+		},
+
+		"typed-variable": {
+			"match": "\\b([A-Za-z_][A-Za-z0-9_]*)[ \\t]*(:)[ \\t]*(static|dynamic)?[ \\t]*(mono|stereo|generic)[ \\t]*",
+			"captures": {
+				"1": {
+					"name": "variable.other"
 				},
 				"2": {
 					"name": "keyword.operator.zing"
 				},
 				"3": {
+					"name": "storage.modifier"
+				},
+				"4": {
 					"name": "storage.type"
 				}
 			}
 		},
-		"identifier": {
-			"name": "entity.name.function",
-			"match": "([A-Za-z_][A-Za-z0-9_]*)"
+
+
+		"UNUSED": {
+			"for": {
+				"match": "\\b(for)[ \\t]+([A-Za-z_][A-Za-z0-9_]*)[ \\t]+(to)[ \\t]+([0-9]+)[ \\t]+(add|mul|min|max)\\b",
+				"captures": {
+					"1": {
+						"name": "keyword.control.zing"
+					},
+					"2": {
+						"name": "variable.other"
+					},
+					"3": {
+						"name": "keyword.control.zing"
+					},
+					"4": {
+						"name": "constant.numeric"
+					},
+					"5": {
+						"name": "keyword.control.zing"
+					}
+				}
+			},
+
+			"auto-variable": {
+				"match": "\\b([A-Za-z_][A-Za-z0-9_]*)[ \\t]*(=)",
+				"captures": {
+					"1": {
+						"name": "variable.other"
+					},
+					"2": {
+						"name": "keyword.operator.zing"
+					}
+				}
+			},
+			"typed-variable": {
+				"match": "\\b([A-Za-z_][A-Za-z0-9_]*)[ \\t]*(:)[ \\t]*(static|dynamic)?[ \\t]*(mono|stereo|generic)[ \\t]*",
+				"captures": {
+					"1": {
+						"name": "variable.other"
+					},
+					"2": {
+						"name": "keyword.operator.zing"
+					},
+					"3": {
+						"name": "storage.modifier"
+					},
+					"4": {
+						"name": "storage.type"
+					}
+				}
+			}
 		}
 	}
 }
