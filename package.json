@@ -4,7 +4,7 @@
     "publisher": "askeksa",
     "description": "Syntax highlighting for the Zing language used in Jingler",
     "icon": "",
-    "repositiory": "https://github.com/askeksa/jingler-syntax",
+    "repository": "https://github.com/askeksa/jingler-syntax",
     "version": "1.0.0",
     "engines": {
         "vscode": "^1.36.0"
