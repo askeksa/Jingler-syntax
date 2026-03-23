@@ -1,3 +1,7 @@
+### 1.1.1
+
+* Support toggle block comment
+
 ### 1.1.0
 
 * Extension now provides definition information to the host.

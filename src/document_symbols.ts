@@ -68,6 +68,9 @@ function tokenize(line: string): Token[] {
 
 
 export function stringSymbols(text: string, uri: vscode.Uri): vscode.SymbolInformation[] {
+    if (text == undefined)
+        return [];
+
     let symbols: vscode.SymbolInformation[] = [];
     let tokens = tokenize(text);
     
@@ -77,14 +80,16 @@ export function stringSymbols(text: string, uri: vscode.Uri): vscode.SymbolInfor
             while (i + 2 < tokens.length && tokens[i + 1].text == "::") {
                 i += 2;
             }
-            let id = tokens[i].text;
+            if (i < tokens.length) {
+                let id = tokens[i].text;
 
-            symbols.push(new vscode.SymbolInformation(
-                id,
-                vscode.SymbolKind.Function,
-                "",
-                new vscode.Location(uri, new vscode.Range(tokens[i].position, new vscode.Position(tokens[i].position.line, tokens[i].position.character + tokens[i].text.length)))
-            ));
+                symbols.push(new vscode.SymbolInformation(
+                    id,
+                    vscode.SymbolKind.Function,
+                    "",
+                    new vscode.Location(uri, new vscode.Range(tokens[i].position, new vscode.Position(tokens[i].position.line, tokens[i].position.character + tokens[i].text.length)))
+                ));
+            }
         }
     } 
 
