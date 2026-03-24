@@ -1,6 +1,10 @@
+### 1.1.2
+
+* Ignore commented lines.
+
 ### 1.1.1
 
-* Support toggle block comment
+* Support toggle block comment.
 
 ### 1.1.0
 
@@ -8,4 +12,4 @@
 
 ### 1.0.0
 
-* Initial release
+* Initial release.

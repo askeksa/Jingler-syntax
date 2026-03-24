@@ -26,6 +26,14 @@ function tokenize(line: string): Token[] {
 
     for (let i = 0; i < line.length;) {
         let ch = line[i];
+
+        if (ch == "#") {
+            while (i < line.length && line[i] != "\n") {
+                i += 1;
+            }
+            continue;
+        }
+
         if (isWhitespace(ch)) {
             if (ch == "\n") {
                 lineNumber += 1;
