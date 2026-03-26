@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { isSymbolStartCharacter, isSymbolMiddleCharacter, documentSymbols, stringSymbols } from "./document_symbols";
+import { isSymbolStartCharacter, isSymbolMiddleCharacter, parseZingDocument, ZingDocument } from "./document_symbols";
 import { fileEnding } from "./constants";
 
 // Return the length of an alpha numeric label at index
@@ -21,11 +21,6 @@ function alphaNumericLabelLength(line: string, index: number): number {
     return 0;
 }
 
-function symbolLengthAt(line: string, index: number): number {
-    return alphaNumericLabelLength(line, index);
-}
-
-
 // Find the longest label containing position
 function symbolAt(line: string, position: number): string | undefined {
     let cursor = position;
@@ -33,7 +28,7 @@ function symbolAt(line: string, position: number): string | undefined {
     var longest = -1;
 
     while (position >= 0) {
-        let length = symbolLengthAt(line, position);
+        let length = alphaNumericLabelLength(line, position);
         if (length > 0 && position + length >= cursor && length > longest) {
             bestPosition = position;
             longest = length;
@@ -59,15 +54,24 @@ function findSymbol(definitions: vscode.SymbolInformation[], symbol: string): vs
 }
 
 
-function findSymbolInDocument(document: vscode.TextDocument, symbol: string): vscode.Location | undefined {
-    var definitions = documentSymbols(document);
-    return findSymbol(definitions, symbol);
-}
+async function findSymbolInDocument(document: ZingDocument, symbol: string): Promise<vscode.Location | undefined> {
+    let location = findSymbol(document.symbols, symbol);
+    if (location != undefined)
+        return location;
 
+    for (let includePath of document.includes) {
+        let includeUri = vscode.Uri.joinPath(document.uri, "..", includePath);
+        try {
+            let bytes = await vscode.workspace.fs.readFile(includeUri);
+            let text = new TextDecoder().decode(bytes);
 
-function findSymbolInString(text: string, uri: vscode.Uri, symbol: string): vscode.Location | undefined {
-    var definitions = stringSymbols(text, uri);
-    return findSymbol(definitions, symbol);
+            location = await findSymbolInDocument(parseZingDocument(text, includeUri), symbol);
+            if (location != undefined)
+                return location;
+        } catch (e) {
+            // Ignore errors reading the file
+        }
+    }
 }
 
 
@@ -75,22 +79,11 @@ export let definitionProvider: vscode.DefinitionProvider = {
     async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Definition | vscode.LocationLink[] | null> {
         var line = document.lineAt(position.line).text;
         var symbol = symbolAt(line, position.character);
-
+        
         if (symbol != undefined) {
-            let zingDocuments = vscode.workspace.textDocuments.filter(v => v.languageId == "zing");
-            for (let doc of zingDocuments) {
-                let location = findSymbolInDocument(doc, symbol);
-                if (location != undefined)
-                    return location;
-            }
-
-            for (let fileUri of await vscode.workspace.findFiles("**/*.{" + fileEnding + "}")) {
-                let bytes = await vscode.workspace.fs.readFile(fileUri);
-                let text = new TextDecoder("latin1").decode(bytes);
-
-                let location = findSymbolInString(text, fileUri, symbol);
-                if (location != undefined)
-                    return location;
+            let location = await findSymbolInDocument(parseZingDocument(document.getText(), document.uri), symbol);
+            if (location != undefined) {
+                return location;
             }
         }
 

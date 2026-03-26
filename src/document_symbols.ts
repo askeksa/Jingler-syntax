@@ -6,9 +6,24 @@ type Token = {
     position: vscode.Position;
 };
 
+export class ZingDocument {
+    symbols: vscode.SymbolInformation[];
+    includes: string[];
+    uri: vscode.Uri;
+
+    constructor(uri: vscode.Uri) {
+        this.symbols = [];
+        this.includes = [];
+        this.uri = uri;
+    }
+}
 
 function isWhitespace(ch: string) {
     return ch.match(/\s/)
+}
+
+function isOperator(ch: string) {
+    return ch.match(/[()-+*/=<>!&|^%~\:]/);
 }
 
 export function isSymbolStartCharacter(ch: string) {
@@ -64,6 +79,11 @@ function tokenize(line: string): Token[] {
                 currentToken += line[i];
                 i += 1;
             }
+        } else if (isOperator(ch)) {
+            while (i < line.length && isOperator(line[i])) {
+                currentToken += line[i];
+                i += 1;
+            }
         }
         
         tokens.push({ text: currentToken, position: new vscode.Position(lineNumber, columnNumber) });
@@ -75,11 +95,13 @@ function tokenize(line: string): Token[] {
 }
 
 
-export function stringSymbols(text: string, uri: vscode.Uri): vscode.SymbolInformation[] {
-    if (text == undefined)
-        return [];
 
-    let symbols: vscode.SymbolInformation[] = [];
+export function parseZingDocument(text: string, uri: vscode.Uri): ZingDocument {
+    let doc = new ZingDocument(uri);
+
+    if (text == undefined)
+        return doc;
+
     let tokens = tokenize(text);
     
     for (var i = 0; i < tokens.length; ++i) {
@@ -91,23 +113,32 @@ export function stringSymbols(text: string, uri: vscode.Uri): vscode.SymbolInfor
             if (i < tokens.length) {
                 let id = tokens[i].text;
 
-                symbols.push(new vscode.SymbolInformation(
+                doc.symbols.push(new vscode.SymbolInformation(
                     id,
                     vscode.SymbolKind.Function,
                     "",
                     new vscode.Location(uri, new vscode.Range(tokens[i].position, new vscode.Position(tokens[i].position.line, tokens[i].position.character + tokens[i].text.length)))
                 ));
             }
+        } else if (tokens[i].text == "include") {
+            i += 1;
+            if (i < tokens.length) {
+                let includePath = tokens[i].text;
+                if (includePath.startsWith('"') && includePath.endsWith('"')) {
+                    includePath = includePath.slice(1, -1);
+                }
+                doc.includes.push(includePath);
+            }
         }
     } 
 
-    return symbols;
+    return doc;
 }
 
 
 export function documentSymbols(document: vscode.TextDocument): vscode.SymbolInformation[] {
     if (document != undefined) {
-        return stringSymbols(document.getText(), document.uri);
+        return parseZingDocument(document.getText(), document.uri).symbols;
     }
     return [];
 }
