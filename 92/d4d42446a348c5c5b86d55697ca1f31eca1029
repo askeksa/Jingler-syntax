@@ -1,0 +1,14 @@
+.gitignore
+  h_3a90fbf9715846 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "92d4d42446a348c5c5b86d55697ca1f31eca1029",
+  "prompts": {},
+  "humans": {
+    "h_3a90fbf9715846": {
+      "author": "Carsten Elton Sørensen <cso@rift.dk>"
+    }
+  }
+}
