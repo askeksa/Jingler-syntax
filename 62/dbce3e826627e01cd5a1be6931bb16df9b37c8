@@ -1,0 +1,82 @@
+test-workspace/core.zing
+  s_e78efc6f53edd9::t_ac8d825b9db011 2-5,7-14
+  s_e78efc6f53edd9::t_7c3fdabbb5f30b 6
+  s_e78efc6f53edd9::t_753c79ba6744c4 1,15-44
+src/definitions.ts
+  s_e78efc6f53edd9::t_805693e6ef29ac 10,24-25,77-79,89
+  s_e78efc6f53edd9::t_93096c052144d9 76
+test-workspace/utils.zing
+  s_e78efc6f53edd9::t_0b5a2ea35ee003 1,8-10,14-29,32
+  s_e78efc6f53edd9::t_04fb877a8a653a 30
+  s_e78efc6f53edd9::t_e2b687ff2756e1 2-7,11-13
+  s_e78efc6f53edd9::t_1c5e0789418cbc 31
+test-workspace/instruments.zing
+  s_e78efc6f53edd9::t_2967ee821bfca3 2-4,6-9,11-15
+  s_e78efc6f53edd9::t_1daa25f686f280 22
+  s_e78efc6f53edd9::t_a71e5addf321cf 18
+  s_e78efc6f53edd9::t_d4425c3ad75222 10
+  s_e78efc6f53edd9::t_5477c915fb34cf 1,16-17,19-21,23
+  s_e78efc6f53edd9::t_adb2e0329b5897 5
+src/tokenizer.ts
+  s_e78efc6f53edd9::t_7ba339be515498 328-336
+  s_e78efc6f53edd9::t_ed22b2d6616e65 447-449
+  s_e78efc6f53edd9::t_1cd0f87583fdeb 437-440,442-445
+  s_e78efc6f53edd9::t_797e7290897130 446
+src/ast.ts
+  s_e78efc6f53edd9::t_ea15824aa2b9b4 1-11,13-58
+  s_e78efc6f53edd9::t_1a0a840b30d7ea 12
+  s_e78efc6f53edd9::t_bf64dab962f9fc 195
+  s_e78efc6f53edd9::t_4e6a04a1a65710 59-194,196-197
+src/parser.ts
+  s_e78efc6f53edd9::t_999cd20208a9f3 77-81,83-89,91-92
+  s_e78efc6f53edd9::t_65c3f42b4d6ec4 134-135
+  s_e78efc6f53edd9::t_2ad2ac601b0b39 296,313
+  s_e78efc6f53edd9::t_22c7478940d350 170,177-178,182,415-417,426-455,496,498,548
+  s_e78efc6f53edd9::t_acfb52de79063d 242,251
+  s_e78efc6f53edd9::t_5e72729ccecea8 336-339
+  s_e78efc6f53edd9::t_abbaf392ae8efe 310-312,316
+  s_e78efc6f53edd9::t_8ccbb932aa638a 5-6
+  s_e78efc6f53edd9::t_16572e463dc131 1-4,7-76,93-133,136-169,171-176,179-181,183-241,243-250,252-295,297-309,314-315,317-335,340-414,418-425,456-495,497,499-547,549-588
+  s_e78efc6f53edd9::t_7e18569f0ecb18 82,90
+src/document_symbols.ts
+  s_e78efc6f53edd9::t_8e0bd9ebe05f20 3-4,10,12-14,28-36,40-42,45,47-49,67
+src/test/parser.test.ts
+  s_e78efc6f53edd9::t_15a8dd79b6db5f 1-81,83-84,87-214,229-247
+  s_e78efc6f53edd9::t_9a7ccdf35fe857 82
+  s_e78efc6f53edd9::t_96e9905661bf6e 215-228
+  s_e78efc6f53edd9::t_d2d6ba6e1e8364 85-86
+src/test/document_symbols.test.ts
+  s_e78efc6f53edd9::t_14e88353c002cd 41
+ZING.md
+  s_e78efc6f53edd9::t_2546328a8710d4 425
+  s_e78efc6f53edd9::t_0e86ef46810b6e 223-224
+  s_e78efc6f53edd9::t_4bb14584b814ae 364-366
+  s_e78efc6f53edd9::t_90504b5c08d91f 292
+  s_e78efc6f53edd9::t_3dfacb5d4be62d 122
+  s_e78efc6f53edd9::t_08219029a4e7a2 325
+  s_e78efc6f53edd9::t_cc4753ef153153 76
+  s_e78efc6f53edd9::t_ee876048761d85 229-231,236-242,245-247
+  s_e78efc6f53edd9::t_880afdb11756d8 248
+AGENTS.md
+  s_e78efc6f53edd9::t_16ad76a4f61910 33-37
+test-workspace/main.zing
+  s_e78efc6f53edd9::t_21fb5877305f7e 3-5,7-9,11-12,16-17
+  s_e78efc6f53edd9::t_1fceadba1f2f4d 1-2,6,10,13-15,18-57,59-67
+  s_e78efc6f53edd9::t_2f60bc362c1d45 58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "62dbce3e826627e01cd5a1be6931bb16df9b37c8",
+  "prompts": {},
+  "sessions": {
+    "s_e78efc6f53edd9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0db92e82fffetCAvC8VRJHpMV3",
+        "model": "qwen36"
+      },
+      "human_author": "Carsten Elton Sørensen <cso@rift.dk>"
+    }
+  }
+}
