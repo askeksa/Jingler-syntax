@@ -432,11 +432,11 @@ class Parser {
 			this.error("statement has no pattern");
 		}
 		if (!this.expect("Assign")) {
-return {
-			pattern,
-			expression: { kind: "Variable", name: "", position: this.posFromToken(startTok) },
-			position: { ...this.posFromToken(startTok), ...this.endPosition() },
-		};
+			return {
+				pattern,
+				expression: { kind: "Variable", name: "", position: this.posFromToken(startTok) },
+				position: { ...this.posFromToken(startTok), ...this.endPosition() },
+			};
 		}
 		const expr = this.parseExpression();
 		return {

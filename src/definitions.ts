@@ -1,26 +1,34 @@
 import * as vscode from 'vscode';
-import { collectDefRangesFromMember, isSymbolStartCharacter, isSymbolMiddleCharacter, parseZingDocument, SymbolDefinition, ZingDocument } from "./document_symbols";
+import {
+	collectDefRangesFromMember,
+	isSymbolStartCharacter,
+	isSymbolMiddleCharacter,
+	parseZingDocument,
+	SymbolDefinition,
+	ZingDocument
+} from "./document_symbols";
 import { Member } from "./ast";
 
-function alphaNumericLabelLength(line: string, index: number): number {
+/* ------------------------------------------------------------------ */
+/*  Shared symbol lookup (used by both definitions and hover)          */
+/* ------------------------------------------------------------------ */
+
+export function alphaNumericLabelLength(line: string, index: number): number {
 	if (index >= line.length)
 		return 0;
 
 	let startIndex = index;
 	if (isSymbolStartCharacter(line[startIndex])) {
 		let endIndex = startIndex + 1;
-
 		while (index < line.length && isSymbolMiddleCharacter(line[endIndex])) {
 			endIndex += 1;
 		}
-
 		return endIndex - startIndex;
 	}
-
 	return 0;
 }
 
-function symbolAt(line: string, position: number): string | undefined {
+export function symbolAt(line: string, position: number): string | undefined {
 	let cursor = position;
 	let bestPosition = -1;
 	let longest = -1;
@@ -40,8 +48,7 @@ function symbolAt(line: string, position: number): string | undefined {
 	return line.slice(bestPosition, bestPosition + longest);
 }
 
-
-function findEnclosingMember(ast: { members: Member[] }, cursorLine: number): Member | undefined {
+export function findEnclosingMember(ast: { members: Member[] }, cursorLine: number): Member | undefined {
 	let last: Member | undefined = undefined;
 	for (const member of ast.members) {
 		if (member.position.line <= cursorLine) {
@@ -57,12 +64,10 @@ function findSymbol(definitions: SymbolDefinition[], symbol: string): SymbolDefi
 			return definition;
 		}
 	}
-
 	return undefined;
 }
 
-
-async function findSymbolInDocument(document: ZingDocument, symbol: string, cursorLine: number): Promise<SymbolDefinition | undefined> {
+export async function findSymbolInDocument(document: ZingDocument, symbol: string, cursorLine: number): Promise<SymbolDefinition | undefined> {
 	const enclosing = findEnclosingMember(document.ast, cursorLine);
 	if (enclosing != undefined) {
 		const localDefs = collectDefRangesFromMember(enclosing, document.uri);
@@ -80,7 +85,6 @@ async function findSymbolInDocument(document: ZingDocument, symbol: string, curs
 		try {
 			let bytes = await vscode.workspace.fs.readFile(includeUri);
 			let text = new TextDecoder().decode(bytes);
-
 			const found = await findSymbolInDocument(parseZingDocument(text, includeUri), symbol, cursorLine);
 			if (found != undefined)
 				return found;
@@ -88,8 +92,13 @@ async function findSymbolInDocument(document: ZingDocument, symbol: string, curs
 			// Ignore errors reading the file
 		}
 	}
+
+	return undefined;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Definition provider                                                */
+/* ------------------------------------------------------------------ */
 
 export let definitionProvider: vscode.DefinitionProvider = {
 	async provideDefinition(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken): Promise<vscode.Definition | vscode.DefinitionLink[] | null> {
@@ -109,4 +118,4 @@ export let definitionProvider: vscode.DefinitionProvider = {
 
 		return null;
 	}
-}
+};
