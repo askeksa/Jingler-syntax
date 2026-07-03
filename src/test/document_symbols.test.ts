@@ -38,7 +38,7 @@ suite("Document Symbols Tests", () => {
 		assert.strictEqual(doc.symbols[0].name, "piano");
 	});
 
-	test("parseZingDocument handles :: namespace syntax", () => {
+	test("parseZingDocument member name is single Id", () => {
 		const uri = vscode.Uri.file("/tmp/test.zing");
 		const doc = parseZingDocument("module Foo::Bar::Baz", uri);
 		assert.strictEqual(doc.symbols.length, 1);
@@ -59,11 +59,17 @@ suite("Document Symbols Tests", () => {
 	});
 
 	test("parseZingDocument handles multiple declarations", () => {
-		const uri = vscode.Uri.file("/tmp/test.zing");
-		const doc = parseZingDocument("function foo\nmodule bar\ninstrument baz", uri);
-		assert.strictEqual(doc.symbols.length, 3);
-		assert.strictEqual(doc.symbols[0].name, "foo");
-		assert.strictEqual(doc.symbols[1].name, "bar");
-		assert.strictEqual(doc.symbols[2].name, "baz");
+			const uri = vscode.Uri.file("/tmp/test.zing");
+			const doc = parseZingDocument("function foo\nmodule bar\ninstrument baz", uri);
+			assert.strictEqual(doc.symbols.length, 3);
+			assert.strictEqual(doc.symbols[0].name, "foo");
+			assert.strictEqual(doc.symbols[1].name, "bar");
+			assert.strictEqual(doc.symbols[2].name, "baz");
+		});
+
+		test("parseZingDocument skips members with no name", () => {
+			const uri = vscode.Uri.file("/tmp/test.zing");
+			const doc = parseZingDocument("instrument 1{C4..G5}::midich::bells (n) -> (o)", uri);
+			assert.strictEqual(doc.symbols.length, 0);
+		});
 	});
-});

@@ -1,0 +1,67 @@
+# NOTE: these files are syntactically valid but semantically nonsensical.
+# They exist solely to exercise parser / tokenizer / extension features.
+
+include "utils.zing"
+include "instruments.zing"
+include "core.zing"
+
+parameter masterVolume 0 to 100 = 80
+parameter tempo 60 to 200 = 120
+parameter pan -100 to 100
+
+global module main () -> (out: stereo number)
+	out = mix(leftCh, rightCh)
+	leftCh = envelope(saw(60), attack, release)
+	rightCh = gain(saw(64), 0.5)
+	attack = 0.01
+	release = 0.3
+	# Conditional expression
+	out = flag ? leftCh : rightCh
+	# Merge expression
+	out = [leftCh, rightCh]
+	# Buffer literal
+	buf = { 0.0, 1.0, 0.5 }
+	# Tuple index
+	x = tup.0
+	y = tup.1
+	# Unary operators
+	neg = -val
+	negated = !flag
+	# Method-style call
+	out = result.process(leftCh, rightCh)
+	# Chained buffer index
+	sample = buf[i]
+	# Chained tuple index
+	first = result.0
+	# Binary operators: all varieties
+	sum = a + b
+	diff = a - b
+	sub = a -+ b
+	prod = a * b
+	quot = a / b
+	eq = a == b
+	neq = a != b
+	lt = a < b
+	gt = a > b
+	leq = a <= b
+	geq = a >= b
+	logAnd = flag & other
+	logOr = flag | other
+	logXor = flag ^ other
+	# Hex / inf literals
+	hexVal = 0x10
+	frac = 0x1.8
+	big = inf
+	# Nested expression with precedence
+	complex = a + b * c - d / e
+	# Call with MIDI arg
+	out = 1{C4..G5}::delay(leftCh, 100)
+	# Multi-assignment
+	a, b = 1.0, 2.0
+	# Buffer init with width
+	buf2 = for 64 stereo buffer lfo(220.0)
+	# For loop: all combinators
+	s = for i to 10 add vals[i]
+	p = for i to 10 mul vals[i]
+	mx = for i to 10 max vals[i]
+	mn = for i to 10 min vals[i]

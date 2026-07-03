@@ -1,0 +1,23 @@
+# NOTE: syntactically valid but semantically nonsensical — parser stress test.
+
+include "core.zing"
+
+instrument midich::saw (noteNum: static mono number) -> (out: dynamic mono number)
+	out = lfo(freq) * amp
+	freq = 440.0
+	amp = 0.7
+
+instrument midich::pad (noteNum: static mono number) -> (out: dynamic stereo number)
+	out = [leftCh, rightCh]
+	leftCh = lfo(freqL) * 0.5
+	rightCh = lfo(freqR) * 0.5
+	freqL = 220.0
+	freqR = 222.0
+
+# Instrument with multiple MIDI params
+instrument midi1::midi2::bells (noteNum: static mono number) -> (out: dynamic mono number)
+	out = lfo(noteNum)
+
+# Instrument with no inputs
+instrument midich::noise () -> (out: dynamic mono number)
+	out = 0.0

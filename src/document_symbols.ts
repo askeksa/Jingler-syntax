@@ -1,15 +1,19 @@
 import * as vscode from 'vscode';
 import { Tokenizer } from "./tokenizer";
+import { parseTokens } from "./parser";
+import { Program, Member } from "./ast";
 
 export class ZingDocument {
 	symbols: vscode.SymbolInformation[];
 	includes: string[];
 	uri: vscode.Uri;
+	ast: Program;
 
-	constructor(uri: vscode.Uri) {
+	constructor(uri: vscode.Uri, ast: Program) {
+		this.uri = uri;
+		this.ast = ast;
 		this.symbols = [];
 		this.includes = [];
-		this.uri = uri;
 	}
 }
 
@@ -21,45 +25,28 @@ export function isSymbolMiddleCharacter(ch: string) {
 	return isSymbolStartCharacter(ch) || (ch >= "0" && ch <= "9");
 }
 
-function isMemberKind(kind: string): boolean {
-	return kind === "Module" || kind === "Function" || kind === "Instrument";
+function memberToSymbol(member: Member, uri: vscode.Uri): vscode.SymbolInformation {
+	const pos = new vscode.Position(member.namePosition.line, member.namePosition.character);
+	const endPos = new vscode.Position(member.namePosition.line, member.namePosition.character + member.name.length);
+	return new vscode.SymbolInformation(
+		member.name,
+		vscode.SymbolKind.Function,
+		"",
+		new vscode.Location(uri, new vscode.Range(pos, endPos))
+	);
 }
 
 export function parseZingDocument(text: string, uri: vscode.Uri): ZingDocument {
-	const doc = new ZingDocument(uri);
-
-	if (text == undefined)
-		return doc;
+	if (text == undefined) {
+		return new ZingDocument(uri, { includes: [], parameters: [], members: [], parseErrors: [] });
+	}
 
 	const tokens = new Tokenizer(text).tokenize();
+	const ast = parseTokens(tokens);
 
-	for (let i = 0; i < tokens.length; ++i) {
-		if (isMemberKind(tokens[i].kind)) {
-			i += 1;
-			while (i + 1 < tokens.length && tokens[i + 1].kind === "ColonColon") {
-				i += 2;
-			}
-			if (i < tokens.length) {
-				const id = tokens[i].text;
-				const pos = new vscode.Position(tokens[i].line, tokens[i].character);
-				doc.symbols.push(new vscode.SymbolInformation(
-					id,
-					vscode.SymbolKind.Function,
-					"",
-					new vscode.Location(uri, new vscode.Range(pos, new vscode.Position(tokens[i].line, tokens[i].character + tokens[i].text.length)))
-				));
-			}
-		} else if (tokens[i].kind === "Include") {
-			i += 1;
-			if (i < tokens.length && tokens[i].kind === "String") {
-				let includePath = tokens[i].text;
-				if (includePath.startsWith('"') && includePath.endsWith('"')) {
-					includePath = includePath.slice(1, -1);
-				}
-				doc.includes.push(includePath);
-			}
-		}
-	}
+	const doc = new ZingDocument(uri, ast);
+	doc.symbols = ast.members.filter(m => m.name).map(m => memberToSymbol(m, uri));
+	doc.includes = ast.includes.map(i => i.path);
 
 	return doc;
 }

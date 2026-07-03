@@ -11,6 +11,7 @@ async function main() {
 			extensionTestsPath
 		});
 	} catch (err) {
+		// eslint-disable-next-line no-console
 		console.error("Tests failed:", err);
 		process.exit(1);
 	}

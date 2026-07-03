@@ -2,76 +2,56 @@
 
 ## Overview
 
-The tokenizer converts a Zing source file into a flat array of `Token` items in a single pass. Comments are handled inline during scanning (no separate pre-processing step).
+The tokenizer converts a Zing source file into a flat array of `Token` items in two distinct phases:
 
-## Token Type
+1. **`splitLexemes(source: string): SplitResult`** — consumes raw source, produces raw lexeme strings with positions
+2. **`matchLexemes(result: SplitResult): Token[]`** — classifies each lexeme's text into a `TokenKind`
 
-### TokenKind (Discriminated Union)
-
-52 variants across 6 categories:
-
-- **Keywords** (20): `Include`, `Parameter`, `To`, `Global`, `Note`, `Module`, `Function`, `Instrument`, `For`, `Buffer`, `Static`, `Dynamic`, `Mono`, `Stereo`, `Generic`, `NumberKw`, `BoolKw`, `Inf`
-- **Operators** (17): `Plus`, `Minus`, `MinusPlus`, `Multiply`, `Divide`, `Assign`, `Eq`, `Neq`, `Less`, `LessEq`, `Greater`, `GreaterEq`, `Or`, `Xor`, `And`, `Question`, `Colon`, `ColonColon`, `Arrow`, `Dot`, `Not`
-- **Delimiters** (7): `LParen`, `RParen`, `LSquare`, `RSquare`, `LBrace`, `RBrace`, `Comma`
-- **Literals** (7): `Decimal`, `Hex`, `String`, `True`, `False`, `Identifier`
-- **MIDI** (1): `MidiMapping`
-- **Meta** (1): `Eof`
-
-Keywords are recognized by looking up identifier text in a `Map<string, KeywordKind>`. `true`/`false` are handled separately as `True`/`False`.
-
-### Token Interface
+Both functions are exported for independent testing. `Tokenizer.tokenize()` is a thin orchestrator:
 
 ```ts
-interface Token {
-  kind: TokenKind;
-  text: string;     // original source text (including quotes for strings)
-  line: number;     // 0-based line number
-  character: number; // 0-based column on that line
+public tokenize(): Token[] {
+    const result = splitLexemes(this.source);
+    return matchLexemes(result);
 }
 ```
 
-Line/character are tracked during the scan loop, matching VS Code's `Position` semantics.
+## Phase 1 — splitLexemes
 
-## Tokenizer Class
+### SplitResult
 
 ```ts
-class Tokenizer {
-  constructor(source: string)
-  tokenize(): Token[]
+interface SplitResult {
+    lexemes: Lexeme[];
+    endLine: number;       // line position after last consumed character
+    endCharacter: number;  // character position after last consumed character
+}
+
+interface Lexeme {
+    text: string;
+    line: number;
+    character: number;
 }
 ```
 
-Returns a `Token[]` that always ends with an `Eof` token.
-
-### Main Scan Loop
+### Scan loop
 
 For each position in the source:
 
 1. Skip `\n` (increment `line`, reset `character`)
 2. Skip whitespace (` `, `\t`, `\r`)
 3. If `#` and `isHashComment()` is true → skip to end of line
-4. Otherwise → tokenize based on current character:
-   - `"` → string literal
-   - `[a-zA-Z_]` → try MIDI mapping identifier, then identifier/keyword
-   - `[0-9]` → try MIDI mapping number, then number
-   - anything else → punctuator (greedy multi-char match)
+4. If `#` and not a comment → emit as single-char lexeme `"#"` (sharp in musical note)
+5. Otherwise → lexeme based on current character:
+   - `"` → string literal (includes quotes, no escape handling)
+   - `[a-zA-Z_]` → identifier (`[a-zA-Z_][a-zA-Z0-9_]*`)
+   - `[0-9]` → number (hex `0x...` or decimal with optional fractional part)
+   - punctuator → greedy two-char then one-char match
+   - unknown → single-char lexeme
 
-### Comment Handling
+### Greedy operator matching
 
-`isHashComment()` runs a state machine from the start of the current line up to the `#` position:
-
-- If state is `Note` (just saw `[A-G]`) AND the next character is a digit → `#` is a sharp (not a comment)
-- Otherwise → `#` is a comment, skip to end of line
-
-This handles:
-- `C#4` → sharp preserved (state is `Note`, next char is digit)
-- `C#x` → comment (state is `Note`, next char is not digit)
-- `G#` at end of line → comment (state is `Note`, no following digit)
-- `# comment` → comment (state is `Initial`)
-
-### Greedy Operator Matching
-
-Two-character operators checked before single-character:
+Two-character operators checked before single-character (via `Map` lookup):
 
 | Two-char | Kind |
 |---|---|
@@ -82,46 +62,82 @@ Two-character operators checked before single-character:
 | `<=` | LessEq |
 | `>=` | GreaterEq |
 | `::` | ColonColon |
+| `..` | DotDot |
 
-`-+` and `->` are checked first (as special cases), then a lookup for `==`, `!=`, `<=`, `>=`, `::`. Single-char operators fall through to a `switch`.
+Single-char operators and delimiters fall through to a separate `Map`.
 
-### Number Parsing
+### Number splitting
 
-- **Decimal**: digits, optional `.` and fractional digits (e.g., `42`, `3.14`)
-- **Hex**: `0x` prefix, hex digits, optional `.` and fractional hex digits (e.g., `0x1A.F`)
-- **`inf`**: keyword token
+- **Hex**: `0x` or `0X` prefix, followed by hex digits and optional `.` + fractional hex digits
+- **Decimal/integer**: digits, optional `.` + fractional digits
+- A trailing `.` without fractional digits is rewound
 
-A trailing `.` without fractional digits is rewound.
+### Comment handling
 
-### MIDI Mapping Tokenization
+`isHashComment()` runs a state machine from the start of the current line up to the `#` position:
 
-MIDI mappings are consumed as a single token:
+- If state is `Note` (just saw `[A-G]`) AND the next character is a digit → `#` is a sharp (not a comment)
+- Otherwise → `#` is a comment, skip to end of line
 
-| Form | Example |
+## Phase 2 — matchLexemes
+
+Classifies each lexeme's `text` into a `TokenKind` using data-driven lookups:
+
+1. `true` / `false` → `True` / `False`
+2. `KEYWORD_MAP` lookup → keyword kind
+3. `OP_MAP` lookup → operator kind
+4. `DELIM_MAP` lookup → delimiter kind
+5. Starts with `"` → `String`
+6. Starts with `0x` / `0X` → `Hex`
+7. Contains `.` → `Decimal`
+8. All digits → `Decimal`
+9. Everything else → `Identifier`
+
+Appends `Eof` token using `endLine` / `endCharacter` from the split result.
+
+## TokenKind
+
+52 variants across 5 categories (no `MidiMapping` — `::` is its own `ColonColon` token):
+
+- **Keywords** (20): `Include`, `Parameter`, `To`, `Global`, `Note`, `Module`, `Function`, `Instrument`, `For`, `Buffer`, `Static`, `Dynamic`, `Mono`, `Stereo`, `Generic`, `NumberKw`, `BoolKw`, `Inf`
+- **Operators** (17): `Plus`, `Minus`, `MinusPlus`, `Multiply`, `Divide`, `Assign`, `Eq`, `Neq`, `Less`, `LessEq`, `Greater`, `GreaterEq`, `Or`, `Xor`, `And`, `Question`, `Colon`, `ColonColon`, `Arrow`, `Dot`, `Not`
+- **Delimiters** (7): `LParen`, `RParen`, `LSquare`, `RSquare`, `LBrace`, `RBrace`, `Comma`
+- **Literals** (6): `Decimal`, `Hex`, `String`, `True`, `False`, `Identifier`
+- **Meta** (1): `Eof`
+
+### Token Interface
+
+```ts
+interface Token {
+    kind: TokenKind;
+    text: string;     // original source text (including quotes for strings)
+    line: number;     // 0-based line number
+    character: number; // 0-based column on that line
+}
+```
+
+## MIDI mappings
+
+`::` is tokenized as a standalone `ColonColon` token. The parser recognizes MIDI param patterns:
+
+| Pattern | Tokens |
 |---|---|
-| `<uint>::` | `1::` |
-| `<uint>{<note>}::` | `1{C4}::` |
-| `<uint>{<note>..<note>}::` | `1{C4..G5}::` |
-| `<uint>{<range> / <note>}::` | `1{C4..G5 / C3}::` |
-| `<id>::` | `kick::` |
+| `kick::` | `Identifier("kick")` `ColonColon` |
+| `1::` | `Decimal("1")` `ColonColon` |
+| `1{C4}::` | `Decimal("1")` `LBrace` `Identifier("C4")` `RBrace` `ColonColon` |
+| `1{C4..G5}::` | `Decimal("1")` `LBrace` `Identifier("C4")` `Dot` `Dot` `Identifier("G5")` `RBrace` `ColonColon` |
 
-Lookahead approach with rewind on failure:
-
-1. **`tryMidiMappingNumber`**: reads digits, checks for `::` or `{`. On failure, rewinds.
-2. **`tryMidiMappingRange`**: parses note names (`[A-G][-#][0-9]`), optional `..` range, optional `/` transpose, then `}::`. Whitespace is skipped inside.
-3. **`tryMidiMappingIdentifier`**: reads identifier, checks for `::`. Only matches if the character after `::` is NOT an identifier start character (prevents consuming `Foo::Bar` as a MIDI mapping — the `::` is tokenized separately).
-
-## Integration with VS Code
-
-`parseZingDocument` in `document_symbols.ts` imports `Tokenizer` and uses `token.kind` comparisons instead of text matching. `vscode.Position` is constructed from `token.line` and `token.character`.
+Parser helpers `isMidiParamStart()` and `consumeMidiParam()` in `parser.ts` handle the lookahead and reconstruction of `MidiParam.text`.
 
 ## Test Coverage
 
-48 tests in `src/test/tokenizer.test.ts`:
+96 tests in `src/test/tokenizer.test.ts`:
 
 - All keywords, booleans, identifiers, numbers (integer, decimal, hex, inf)
 - Strings, operators (single, two-char, `-+`, `->`), delimiters
 - Comments (hash removal, sharp in notes, trailing sharp, multiple sharps)
-- MIDI mappings (channel, range, transpose, sharp notes, named, non-MIDI fallback)
+- MIDI mappings as separate tokens (channel, range, transpose, sharp notes, named)
 - Line/character tracking (basic, after newline, after comment)
 - EOF token, integration scenarios
+- `splitLexemes` direct tests (lexeme strings, positions, whitespace, comments, sharps, operators)
+- `matchLexemes` direct tests (keywords, numbers, operators, delimiters, strings, identifiers, Eof position)

@@ -1,0 +1,44 @@
+# NOTE: syntactically valid but semantically nonsensical — parser stress test.
+
+global module delay (signal: dynamic stereo number, samples: static mono number) -> (out: dynamic stereo number)
+	out = signal
+
+function saw (noteNum: static mono number) -> (out: dynamic stereo number)
+	out = [wave, wave]
+	wave = for i to 10 add buf[i]
+	buf = for 16 buffer lfo(110.0)
+
+note module lfo (freq: static mono number) -> (out: dynamic mono number)
+	out = phase
+	phase = cell(0.0, step)
+	step = freq * 0.001
+
+# Module with buffer literal in body
+global module initTable () -> (out: static generic buffer)
+	out = { 0.0, 0.5, 1.0, 0.5 }
+
+# Function that returns a tuple
+function sincosWrap (angle: mono number) -> (s: mono number, c: mono number)
+	s = sin(angle)
+	c = cos(angle)
+
+# Module with conditional expression
+global module gateProc (val: dynamic mono number) -> (out: dynamic mono number)
+	out = val > 0.0 ? val : -val
+
+# Module with nested buffer index
+global module bufMix (a: static generic buffer, b: static generic buffer) -> (out: dynamic mono number)
+	out = a[0] + b[1]
+
+# Module with chained method call
+global module chainProc (input: dynamic stereo number) -> (out: dynamic stereo number)
+	out = input.normalize.scale(0.5)
+
+# Module with deeply nested expression
+global module complexCalc (x: mono number) -> (out: mono number)
+	out = ((x + 1.0) * 2.0 - 3.0) / 4.0
+
+# Module with multiple for loops
+global module sumBuffer (data: static generic buffer) -> (out: mono number)
+	out = for i to 10 add data[i]
+	t = for j to 5 mul data[j]

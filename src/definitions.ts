@@ -1,15 +1,13 @@
 import * as vscode from 'vscode';
 import { isSymbolStartCharacter, isSymbolMiddleCharacter, parseZingDocument, ZingDocument } from "./document_symbols";
-import { fileEnding } from "./constants";
 
-// Return the length of an alpha numeric label at index
 function alphaNumericLabelLength(line: string, index: number): number {
 	if (index >= line.length)
 		return 0;
 
 	let startIndex = index;
 	if (isSymbolStartCharacter(line[startIndex])) {
-		var endIndex = startIndex + 1;
+		let endIndex = startIndex + 1;
 
 		while (index < line.length && isSymbolMiddleCharacter(line[endIndex])) {
 			endIndex += 1;
@@ -21,11 +19,10 @@ function alphaNumericLabelLength(line: string, index: number): number {
 	return 0;
 }
 
-// Find the longest label containing position
 function symbolAt(line: string, position: number): string | undefined {
 	let cursor = position;
-	var bestPosition = -1;
-	var longest = -1;
+	let bestPosition = -1;
+	let longest = -1;
 
 	while (position >= 0) {
 		let length = alphaNumericLabelLength(line, position);
@@ -76,10 +73,10 @@ async function findSymbolInDocument(document: ZingDocument, symbol: string): Pro
 
 
 export let definitionProvider: vscode.DefinitionProvider = {
-	async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Definition | vscode.LocationLink[] | null> {
-		var line = document.lineAt(position.line).text;
-		var symbol = symbolAt(line, position.character);
-		
+	async provideDefinition(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken): Promise<vscode.Definition | vscode.LocationLink[] | null> {
+		let line = document.lineAt(position.line).text;
+		let symbol = symbolAt(line, position.character);
+
 		if (symbol != undefined) {
 			let location = await findSymbolInDocument(parseZingDocument(document.getText(), document.uri), symbol);
 			if (location != undefined) {
@@ -90,4 +87,3 @@ export let definitionProvider: vscode.DefinitionProvider = {
 		return null;
 	}
 }
-

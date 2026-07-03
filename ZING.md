@@ -73,7 +73,7 @@ Mono values auto-expand to stereo or generic where required. Buffers cannot be a
 | `number` | Floating-point audio sample |
 | `bool` | Boolean |
 | `buffer` | Audio buffer (sample array) |
-| `typeless` | Placeholder — resolved by inference |
+| `typeless` | Placeholder — resolved by inference. Used in built-in module signatures (`cell`, `delay`, `dyndelay`). Not a parseable keyword in source; injected by type inference. |
 
 ### Type Syntax
 
@@ -119,7 +119,7 @@ Global runtime parameters with a range and optional default value.
 
 **Kind**: `module`, `function`, `instrument`
 
-**MIDI inputs** (modules only): `channel{noteRange / transpose}::` or `name::`
+**MIDI inputs** (modules only): `channel{noteRange / transpose}::` or `name::` — these use `::` for MIDI routing, not for qualified names. Member names are a single `Id`; `Foo::Bar` is not valid syntax for a member name.
 
 **Inputs/Outputs**: comma-separated `name: type` declarations. Width is mandatory. Scope and value type are optional (defaults: `dynamic stereo number` for modules, `stereo number` for functions).
 
@@ -220,25 +220,31 @@ BinOpLevel<Op, Next> → BinOpLevel<Op, Next> BinOp<Op> NextLevel
                       | NextLevel
 ```
 
+Note: `For` and `BufferInit` sit at the same level as `Conditional` and `OrExpression` in the grammar. The `combinator` in `For` accepts any `Id` — validation that it is one of `add`, `mul`, `max`, `min` happens at type-check time, not parse time.
+
 ### Unary & Primary expressions
 
 ```
 UnaryExpression → UnOp<UnaryOp> PrimaryExpression
-                | UnaryExpression `.` Id ParenthesizedExpressions?   (method-style call)
-                | UnaryExpression `.` Uint                            (tuple index)
-                | PrimaryExpression
+               | UnaryExpression `.` Id ParenthesizedExpressions?   (method-style call)
+               | UnaryExpression `.` Uint                            (tuple index)
+               | PrimaryExpression
 
 UnaryOp → `-` | `!`
 
 PrimaryExpression → Num                                        (Number)
-                  | Bool                                       (Bool)
-                  | Id                                         (Variable)
-                  | MidiArg* Id ParenthesizedExpressions        (Call)
-                  | ParenthesizedExpressions                    (Tuple)
-                  | `[` Expression `,` Expression `]`           (Merge)
-                  | `{` Comma<Expression> `}`                   (BufferLiteral)
-                  | PrimaryExpression `[` Expression `]`        (BufferIndex)
+                 | Bool                                       (Bool)
+                 | Id                                         (Variable)
+                 | MidiArg* Id ParenthesizedExpressions        (Call)
+                 | ParenthesizedExpressions                    (Tuple)
+                 | `[` Expression `,` Expression `]`           (Merge)
+                 | `{` Comma<Expression> `}`                   (BufferLiteral)
+                 | PrimaryExpression `[` Expression `]`        (BufferIndex)
 ```
+
+Important: method-style calls (`expr.id(args)`) and tuple indexing (`expr.N`) are part of `UnaryExpression`, meaning they bind **tighter** than unary operators. So `-foo.0` parses as `-(foo.0)`, not `(-foo).0`. A method call chains the receiver as the first argument: `result.process(args)` is equivalent to `process(result, args...)`.
+
+`[expr]` (single expression in brackets without a comma) is **not** valid grammar. Only `[expr, expr]` (Merge) is valid. `Expand` nodes are injected by the type inference pass, not parsed from source.
 
 ### Parenthesized expressions
 
@@ -283,7 +289,7 @@ Id → <[_a-zA-Z][_a-zA-Z0-9]*>
 
 ### Repetition combinators
 
-The `for ... to ... combinator ...` expression requires `combinator` to be one of:
+The `for ... to ... combinator ...` expression accepts any `Id` as the combinator at parse time. Validation that it is one of the following happens at type-check time:
 
 | Combinator | Neutral value | Operation |
 |---|---|---|
@@ -316,6 +322,7 @@ A pattern is a comma-separated list of named variables with optional type annota
 | Additive | `+` `-` `-+` |
 | Multiplicative | `*` `/` |
 | Unary | `-` `!` |
+| Postfix | `expr.id(args)` (method call), `expr.N` (tuple index), `expr[expr]` (buffer index) |
 | Primary | literals, calls, tuples, etc. |
 
 ### Expression Variants
@@ -354,7 +361,9 @@ A pattern is a comma-separated list of named variables with optional type annota
 
 **Buffer literal**: `{ a, b, c }` — creates a buffer from expressions
 
-**Expand**: `[expr]` — explicitly expands mono to wider width
+**Method-style call**: `result.method(args)` — chains `result` as the first argument to `method`. Parsed at the unary level, so `-foo.0` is `-(foo.0)`, not `(-foo).0`.
+
+**Expand**: Not source syntax — injected by the type inference pass when mono values need to widen to stereo or generic.
 
 ## Built-in Functions
 
@@ -413,7 +422,7 @@ Used to route MIDI input to global modules and instruments.
 - Function I/O defaults to `stereo number` (no scope)
 - Instrument I/O defaults to `dynamic stereo number`
 - Unscoped variables default to `static` in modules
-- Mono values auto-expand to required width
+- Mono values auto-expand to required width; this auto-expansion is represented in the AST as `Expand` nodes, injected by type inference (not parsed from source)
 - Generic width resolves to the widest argument (`mono` < `stereo` < `generic`)
 - Typeless resolves to the concrete type of arguments
 

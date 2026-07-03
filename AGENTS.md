@@ -30,6 +30,11 @@ No CI workflows.
 | `language-configuration.json` | Language config (brackets, comments, etc.) |
 | `out/` | Compiled JavaScript (gitignored, produced by `tsc`) |
 
+## Reference documents
+
+- **`ZING.md`** — Zing language reference: lexical structure, types, grammar, expressions, built-ins, execution model. Read when working on tokenizer, parser, grammar, or anything language-specific.
+- **`TOKENIZER.md`** — Tokenizer design: `TokenKind` variants, `Token` interface, scan loop, comment/sharp disambiguation, greedy operator matching, MIDI mapping tokenization. Read when modifying the tokenizer or `document_symbols.ts`.
+
 ## Key details
 
 - **Activation**: `onLanguage:zing` — extension only loads when a `.zing` file is opened.

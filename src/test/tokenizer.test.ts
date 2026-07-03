@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { Tokenizer, Token, TokenKind } from "../tokenizer";
+import { Tokenizer, Token, TokenKind, splitLexemes, matchLexemes } from "../tokenizer";
 
 function kinds(tokens: Token[]): TokenKind[] {
 	return tokens.map(t => t.kind);
@@ -97,6 +97,74 @@ suite("Tokenizer", () => {
 			assert.strictEqual(tokens[0].kind, "String");
 			assert.strictEqual(tokens[0].text, '""');
 		});
+
+		test("string with hash is not a comment", () => {
+			const tokens = new Tokenizer('"# not a comment"').tokenize();
+			assert.strictEqual(tokens[0].kind, "String");
+			assert.strictEqual(tokens[0].text, '"# not a comment"');
+		});
+
+		test("string with operators", () => {
+			const tokens = new Tokenizer('"a + b * c == d"').tokenize();
+			assert.strictEqual(tokens[0].kind, "String");
+			assert.strictEqual(tokens[0].text, '"a + b * c == d"');
+		});
+
+		test("string with colons and double colons", () => {
+			const tokens = new Tokenizer('"kick::snare::hihat"').tokenize();
+			assert.strictEqual(tokens[0].kind, "String");
+			assert.strictEqual(tokens[0].text, '"kick::snare::hihat"');
+		});
+
+		test("string with double dots", () => {
+			const tokens = new Tokenizer('"C4..G5"').tokenize();
+			assert.strictEqual(tokens[0].kind, "String");
+			assert.strictEqual(tokens[0].text, '"C4..G5"');
+		});
+
+		test("string with braces and brackets", () => {
+			const tokens = new Tokenizer('"[a, {b, c}]"').tokenize();
+			assert.strictEqual(tokens[0].kind, "String");
+			assert.strictEqual(tokens[0].text, '"[a, {b, c}]"');
+		});
+
+		test("string with arrow", () => {
+			const tokens = new Tokenizer('"a -> b"').tokenize();
+			assert.strictEqual(tokens[0].kind, "String");
+			assert.strictEqual(tokens[0].text, '"a -> b"');
+		});
+
+		test("string with minus-plus", () => {
+			const tokens = new Tokenizer('"-+"').tokenize();
+			assert.strictEqual(tokens[0].kind, "String");
+			assert.strictEqual(tokens[0].text, '"-+"');
+		});
+
+		test("string followed by tokens", () => {
+			const tokens = new Tokenizer('"hello" x + y').tokenize();
+			assert.deepStrictEqual(kinds(tokens), ["String", "Identifier", "Plus", "Identifier", "Eof"]);
+			assert.deepStrictEqual(texts(tokens), ["\"hello\"", "x", "+", "y", ""]);
+		});
+
+		test("string with hash followed by real comment", () => {
+			const tokens = new Tokenizer('"# in string" # real comment\nx').tokenize();
+			assert.strictEqual(tokens[0].kind, "String");
+			assert.strictEqual(tokens[0].text, '"# in string"');
+			assert.strictEqual(tokens[1].kind, "Identifier");
+			assert.strictEqual(tokens[1].text, "x");
+		});
+
+		test("string with sharp note syntax", () => {
+			const tokens = new Tokenizer('"C#4 D#3 G#"').tokenize();
+			assert.strictEqual(tokens[0].kind, "String");
+			assert.strictEqual(tokens[0].text, '"C#4 D#3 G#"');
+		});
+
+		test("string with quote-like content (no escape handling)", () => {
+			const tokens = new Tokenizer('"a" "b"').tokenize();
+			assert.deepStrictEqual(kinds(tokens), ["String", "String", "Eof"]);
+			assert.deepStrictEqual(texts(tokens), ["\"a\"", "\"b\"", ""]);
+		});
 	});
 
 	suite("operators", () => {
@@ -172,40 +240,40 @@ suite("Tokenizer", () => {
 	});
 
 	suite("MIDI mappings", () => {
-		test("channel only", () => {
+		test("channel only: 1:: → Decimal ColonColon", () => {
 			const tokens = new Tokenizer("1::").tokenize();
-			assert.strictEqual(tokens[0].kind, "MidiMapping");
-			assert.strictEqual(tokens[0].text, "1::");
+			assert.deepStrictEqual(kinds(tokens), ["Decimal", "ColonColon", "Eof"]);
+			assert.deepStrictEqual(texts(tokens), ["1", "::", ""]);
 		});
 
-		test("channel with single note", () => {
+		test("channel with single note: 1{C4}:: → separate tokens", () => {
 			const tokens = new Tokenizer("1{C4}::").tokenize();
-			assert.strictEqual(tokens[0].kind, "MidiMapping");
-			assert.strictEqual(tokens[0].text, "1{C4}::");
+			assert.deepStrictEqual(kinds(tokens), ["Decimal", "LBrace", "Identifier", "RBrace", "ColonColon", "Eof"]);
+			assert.deepStrictEqual(texts(tokens), ["1", "{", "C4", "}", "::", ""]);
 		});
 
-		test("channel with range", () => {
+		test("channel with range: 1{C4..G5}:: → separate tokens", () => {
 			const tokens = new Tokenizer("1{C4..G5}::").tokenize();
-			assert.strictEqual(tokens[0].kind, "MidiMapping");
-			assert.strictEqual(tokens[0].text, "1{C4..G5}::");
+			assert.deepStrictEqual(kinds(tokens), ["Decimal", "LBrace", "Identifier", "DotDot", "Identifier", "RBrace", "ColonColon", "Eof"]);
+			assert.deepStrictEqual(texts(tokens), ["1", "{", "C4", "..", "G5", "}", "::", ""]);
 		});
 
-		test("channel with range and transpose", () => {
+		test("channel with range and transpose: 1{C4..G5 / C3}:: → separate tokens", () => {
 			const tokens = new Tokenizer("1{C4..G5 / C3}::").tokenize();
-			assert.strictEqual(tokens[0].kind, "MidiMapping");
-			assert.strictEqual(tokens[0].text, "1{C4..G5 / C3}::");
+			assert.deepStrictEqual(kinds(tokens), ["Decimal", "LBrace", "Identifier", "DotDot", "Identifier", "Divide", "Identifier", "RBrace", "ColonColon", "Eof"]);
+			assert.deepStrictEqual(texts(tokens), ["1", "{", "C4", "..", "G5", "/", "C3", "}", "::", ""]);
 		});
 
-		test("channel with sharp notes", () => {
+		test("channel with sharp notes: 1{C#4..G#5}:: → separate tokens", () => {
 			const tokens = new Tokenizer("1{C#4..G#5}::").tokenize();
-			assert.strictEqual(tokens[0].kind, "MidiMapping");
-			assert.strictEqual(tokens[0].text, "1{C#4..G#5}::");
+			assert.deepStrictEqual(kinds(tokens), ["Decimal", "LBrace", "Identifier", "Identifier", "Decimal", "DotDot", "Identifier", "Identifier", "Decimal", "RBrace", "ColonColon", "Eof"]);
+			assert.deepStrictEqual(texts(tokens), ["1", "{", "C", "#", "4", "..", "G", "#", "5", "}", "::", ""]);
 		});
 
-		test("named mapping", () => {
+		test("named mapping: kick:: → Identifier ColonColon", () => {
 			const tokens = new Tokenizer("kick::").tokenize();
-			assert.strictEqual(tokens[0].kind, "MidiMapping");
-			assert.strictEqual(tokens[0].text, "kick::");
+			assert.deepStrictEqual(kinds(tokens), ["Identifier", "ColonColon", "Eof"]);
+			assert.deepStrictEqual(texts(tokens), ["kick", "::", ""]);
 		});
 
 		test("bare number without :: is not MIDI", () => {
@@ -307,6 +375,102 @@ suite("Tokenizer", () => {
 				"Parameter", "Identifier", "Decimal", "To", "Decimal", "Assign", "Decimal",
 				"Eof",
 			]);
+		});
+	});
+
+	suite("splitLexemes", () => {
+		test("returns lexeme strings with positions", () => {
+			const result = splitLexemes("a + b");
+			assert.strictEqual(result.lexemes.length, 3);
+			assert.deepStrictEqual(result.lexemes.map(l => l.text), ["a", "+", "b"]);
+			assert.strictEqual(result.lexemes[0].character, 0);
+			assert.strictEqual(result.lexemes[1].character, 2);
+			assert.strictEqual(result.lexemes[2].character, 4);
+		});
+
+		test("empty source", () => {
+			const result = splitLexemes("");
+			assert.strictEqual(result.lexemes.length, 0);
+			assert.strictEqual(result.endLine, 0);
+			assert.strictEqual(result.endCharacter, 0);
+		});
+
+		test("end position after newline", () => {
+			const result = splitLexemes("hello\n");
+			assert.strictEqual(result.endLine, 1);
+			assert.strictEqual(result.endCharacter, 0);
+		});
+
+		test("skips whitespace", () => {
+			const result = splitLexemes("  x  ");
+			assert.strictEqual(result.lexemes.length, 1);
+			assert.strictEqual(result.lexemes[0].text, "x");
+			assert.strictEqual(result.lexemes[0].character, 2);
+		});
+
+		test("skips comments", () => {
+			const result = splitLexemes("# comment\nx");
+			assert.strictEqual(result.lexemes.length, 1);
+			assert.strictEqual(result.lexemes[0].text, "x");
+			assert.strictEqual(result.lexemes[0].line, 1);
+		});
+
+		test("sharp is not a comment", () => {
+			const result = splitLexemes("C#4");
+			assert.strictEqual(result.lexemes.length, 3);
+			assert.deepStrictEqual(result.lexemes.map(l => l.text), ["C", "#", "4"]);
+		});
+
+		test("two-char operators are single lexemes", () => {
+			const result = splitLexemes("== != <= >= :: -+ ->");
+			assert.deepStrictEqual(result.lexemes.map(l => l.text), ["==", "!=", "<=", ">=", "::", "-+", "->"]);
+		});
+	});
+
+	suite("matchLexemes", () => {
+		test("classifies keywords", () => {
+			const result = splitLexemes("include module for");
+			const tokens = matchLexemes(result);
+			assert.deepStrictEqual(kinds(tokens), ["Include", "Module", "For", "Eof"]);
+		});
+
+		test("classifies numbers", () => {
+			const result = splitLexemes("42 3.14 0xFF");
+			const tokens = matchLexemes(result);
+			assert.deepStrictEqual(kinds(tokens), ["Decimal", "Decimal", "Hex", "Eof"]);
+		});
+
+		test("classifies operators", () => {
+			const result = splitLexemes("+ - * / == !=");
+			const tokens = matchLexemes(result);
+			assert.deepStrictEqual(kinds(tokens), ["Plus", "Minus", "Multiply", "Divide", "Eq", "Neq", "Eof"]);
+		});
+
+		test("classifies delimiters", () => {
+			const result = splitLexemes("( ) [ ] { } ,");
+			const tokens = matchLexemes(result);
+			assert.deepStrictEqual(kinds(tokens), ["LParen", "RParen", "LSquare", "RSquare", "LBrace", "RBrace", "Comma", "Eof"]);
+		});
+
+		test("classifies strings", () => {
+			const result = splitLexemes('"hello"');
+			const tokens = matchLexemes(result);
+			assert.deepStrictEqual(kinds(tokens), ["String", "Eof"]);
+		});
+
+		test("classifies identifiers", () => {
+			const result = splitLexemes("myVar _x foo123");
+			const tokens = matchLexemes(result);
+			assert.deepStrictEqual(kinds(tokens), ["Identifier", "Identifier", "Identifier", "Eof"]);
+		});
+
+		test("eof uses end position", () => {
+			const result = splitLexemes("x\n");
+			const tokens = matchLexemes(result);
+			const eof = tokens[tokens.length - 1];
+			assert.strictEqual(eof.kind, "Eof");
+			assert.strictEqual(eof.line, 1);
+			assert.strictEqual(eof.character, 0);
 		});
 	});
 });
