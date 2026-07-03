@@ -1,4 +1,4 @@
-import { Token, TokenKind } from "./tokenizer";
+import { Token, TokenKind, filterTokens } from "./tokenizer";
 import {
 	Position, ContextKind, MemberKind, ScopeKind, WidthKind, ValueTypeKind,
 	ExplicitType, PatternItem, MidiParam, MidiMapping, MidiNoteRange,
@@ -13,7 +13,7 @@ class Parser {
 	private errors: ParseError[] = [];
 
 	constructor(tokens: Token[]) {
-		this.tokens = tokens;
+		this.tokens = filterTokens(tokens);
 	}
 
 	private error(message: string): void {
@@ -60,6 +60,11 @@ class Parser {
 
 	private posFromToken(t: Token): Position {
 		return { line: t.line, character: t.character };
+	}
+
+	private endPosition(): { endLine: number; endCharacter: number } {
+		const t = this.pos > 0 ? this.tokens[this.pos - 1] : this.peek();
+		return { endLine: t.line, endCharacter: t.character + t.text.length };
 	}
 
 	// --- Program ---
@@ -279,7 +284,8 @@ class Parser {
 			min: minTok,
 			max: maxTok,
 			defaultValue,
-			position: this.posFromToken(start),
+			position: { ...this.posFromToken(start), ...this.endPosition() },
+			namePosition: this.posFromToken(nameTok),
 		};
 	}
 
@@ -340,7 +346,7 @@ class Parser {
 			this.skipToNextMemberStart();
 			return {
 				context, kind, midiParams, name, inputs: [], outputs: [], body: [],
-				position, namePosition,
+				position: { ...position, ...this.endPosition() }, namePosition,
 			};
 		}
 
@@ -361,7 +367,7 @@ class Parser {
 
 		return {
 			context, kind, midiParams, name, inputs, outputs, body,
-			position, namePosition,
+			position: { ...position, ...this.endPosition() }, namePosition,
 		};
 	}
 
@@ -393,7 +399,7 @@ class Parser {
 		return {
 			name: nameTok.text,
 			type,
-			position: this.posFromToken(nameTok),
+			position: { ...this.posFromToken(nameTok), ...this.endPosition() },
 		};
 	}
 
@@ -426,17 +432,17 @@ class Parser {
 			this.error("statement has no pattern");
 		}
 		if (!this.expect("Assign")) {
-			return {
-				pattern,
-				expression: { kind: "Variable", name: "", position: this.posFromToken(startTok) },
-				position: this.posFromToken(startTok),
-			};
+return {
+			pattern,
+			expression: { kind: "Variable", name: "", position: this.posFromToken(startTok) },
+			position: { ...this.posFromToken(startTok), ...this.endPosition() },
+		};
 		}
 		const expr = this.parseExpression();
 		return {
 			pattern,
 			expression: expr,
-			position: this.posFromToken(startTok),
+			position: { ...this.posFromToken(startTok), ...this.endPosition() },
 		};
 	}
 

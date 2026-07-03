@@ -49,11 +49,18 @@
                 "configuration": "./language-configuration.json"
             }
         ],
-        "grammars": [
+        "semanticTokenScopes": [
             {
                 "language": "zing",
-                "scopeName": "source.zing",
-                "path": "./syntaxes/zing.tmLanguage.json"
+                "scopes": {
+                    "zingToplevel": ["storage.type.zing.toplevel"],
+                    "zingToplevelModifier": ["storage.modifier.zing.toplevel"],
+                    "zingScope": ["entity.name.type.zing.scope"],
+                    "zingWidth": ["entity.name.type.zing.width"],
+                    "zingType": ["entity.name.type.zing.type"],
+                    "zingControl": ["keyword.control.zing"],
+                    "supportFunction": ["support.function"]
+                }
             }
         ]
     },

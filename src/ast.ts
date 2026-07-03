@@ -58,6 +58,7 @@ export interface Parameter {
 	max: string;
 	defaultValue: string | undefined;
 	position: Position;
+	namePosition: Position;
 }
 
 export interface Member {

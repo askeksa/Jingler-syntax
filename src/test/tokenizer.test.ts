@@ -150,8 +150,10 @@ suite("Tokenizer", () => {
 			const tokens = new Tokenizer('"# in string" # real comment\nx').tokenize();
 			assert.strictEqual(tokens[0].kind, "String");
 			assert.strictEqual(tokens[0].text, '"# in string"');
-			assert.strictEqual(tokens[1].kind, "Identifier");
-			assert.strictEqual(tokens[1].text, "x");
+			assert.strictEqual(tokens[1].kind, "Comment");
+			assert.strictEqual(tokens[1].text, "# real comment");
+			assert.strictEqual(tokens[2].kind, "Identifier");
+			assert.strictEqual(tokens[2].text, "x");
 		});
 
 		test("string with sharp note syntax", () => {
@@ -204,10 +206,10 @@ suite("Tokenizer", () => {
 	});
 
 	suite("comments", () => {
-		test("hash comment removed", () => {
+		test("hash comment emitted", () => {
 			const tokens = new Tokenizer("x # this is a comment\ny").tokenize();
-			assert.deepStrictEqual(kinds(tokens), ["Identifier", "Identifier", "Eof"]);
-			assert.deepStrictEqual(texts(tokens), ["x", "y", ""]);
+			assert.deepStrictEqual(kinds(tokens), ["Identifier", "Comment", "Identifier", "Eof"]);
+			assert.deepStrictEqual(texts(tokens), ["x", "# this is a comment", "y", ""]);
 		});
 
 		test("sharp in note name is not a comment", () => {
@@ -310,9 +312,12 @@ suite("Tokenizer", () => {
 
 		test("position after comment", () => {
 			const tokens = new Tokenizer("# comment\nx").tokenize();
-			assert.strictEqual(tokens[0].kind, "Identifier");
-			assert.strictEqual(tokens[0].line, 1);
+			assert.strictEqual(tokens[0].kind, "Comment");
+			assert.strictEqual(tokens[0].line, 0);
 			assert.strictEqual(tokens[0].character, 0);
+			assert.strictEqual(tokens[1].kind, "Identifier");
+			assert.strictEqual(tokens[1].line, 1);
+			assert.strictEqual(tokens[1].character, 0);
 		});
 	});
 
@@ -408,11 +413,13 @@ suite("Tokenizer", () => {
 			assert.strictEqual(result.lexemes[0].character, 2);
 		});
 
-		test("skips comments", () => {
+		test("emits comments", () => {
 			const result = splitLexemes("# comment\nx");
-			assert.strictEqual(result.lexemes.length, 1);
-			assert.strictEqual(result.lexemes[0].text, "x");
-			assert.strictEqual(result.lexemes[0].line, 1);
+			assert.strictEqual(result.lexemes.length, 2);
+			assert.strictEqual(result.lexemes[0].text, "# comment");
+			assert.strictEqual(result.lexemes[0].line, 0);
+			assert.strictEqual(result.lexemes[1].text, "x");
+			assert.strictEqual(result.lexemes[1].line, 1);
 		});
 
 		test("sharp is not a comment", () => {

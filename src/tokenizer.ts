@@ -30,7 +30,7 @@ type DelimiterKind =
 type LiteralKind =
 	| "Integer" | "Decimal" | "Hex"
 	| "String" | "True" | "False"
-	| "Identifier";
+	| "Identifier" | "Comment";
 
 type MetaKind = "Eof";
 
@@ -173,7 +173,7 @@ export function splitLexemes(source: string): SplitResult {
 			continue;
 		}
 
-		// Comment
+		// Comment / sharp
 		if (ch === "#") {
 			let lineStart = pos - 1;
 			while (lineStart >= 0 && source[lineStart] !== "\n") {
@@ -181,10 +181,13 @@ export function splitLexemes(source: string): SplitResult {
 			}
 			lineStart++;
 			if (isHashComment(source, lineStart, pos)) {
+				const commentStart = pos;
+				const commentChar = character;
 				while (pos < source.length && source[pos] !== "\n") {
 					pos++;
 					character++;
 				}
+				lexemes.push({ text: source.substring(commentStart, pos), line, character: commentChar });
 				continue;
 			}
 			// Sharp (not a comment) — emit as single lexeme
@@ -317,6 +320,9 @@ function classifyLexeme(text: string): TokenKind {
 	const delim = DELIM_MAP.get(text);
 	if (delim !== undefined) return delim;
 
+	// Comment (multi-char #... — single # is a sharp in note names)
+	if (text.startsWith('#') && text.length > 1) return "Comment";
+
 	// String
 	if (text.startsWith('"')) return "String";
 
@@ -360,4 +366,20 @@ export class Tokenizer {
 		const result = splitLexemes(this.source);
 		return matchLexemes(result);
 	}
+}
+
+/* ------------------------------------------------------------------ */
+/*  Filter — remove Comment + Eof for parser consumption               */
+/* ------------------------------------------------------------------ */
+
+export function filterTokens(tokens: Token[]): Token[] {
+	const filtered: Token[] = [];
+	for (const t of tokens) {
+		if (t.kind !== "Comment" && t.kind !== "Eof") {
+			filtered.push(t);
+		}
+	}
+	const last = tokens[tokens.length - 1];
+	filtered.push({ kind: "Eof", text: "", line: last?.line ?? 0, character: last?.character ?? 0 });
+	return filtered;
 }

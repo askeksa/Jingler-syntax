@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { isSymbolStartCharacter, isSymbolMiddleCharacter, parseZingDocument, ZingDocument } from "./document_symbols";
+import { collectDefRangesFromMember, isSymbolStartCharacter, isSymbolMiddleCharacter, parseZingDocument, SymbolDefinition, ZingDocument } from "./document_symbols";
+import { Member } from "./ast";
 
 function alphaNumericLabelLength(line: string, index: number): number {
 	if (index >= line.length)
@@ -40,10 +41,20 @@ function symbolAt(line: string, position: number): string | undefined {
 }
 
 
-function findSymbol(definitions: vscode.SymbolInformation[], symbol: string): vscode.Location | undefined {
+function findEnclosingMember(ast: { members: Member[] }, cursorLine: number): Member | undefined {
+	let last: Member | undefined = undefined;
+	for (const member of ast.members) {
+		if (member.position.line <= cursorLine) {
+			last = member;
+		}
+	}
+	return last;
+}
+
+function findSymbol(definitions: SymbolDefinition[], symbol: string): SymbolDefinition | undefined {
 	for (let definition of definitions) {
 		if (definition.name == symbol) {
-			return definition.location;
+			return definition;
 		}
 	}
 
@@ -51,10 +62,18 @@ function findSymbol(definitions: vscode.SymbolInformation[], symbol: string): vs
 }
 
 
-async function findSymbolInDocument(document: ZingDocument, symbol: string): Promise<vscode.Location | undefined> {
-	let location = findSymbol(document.symbols, symbol);
-	if (location != undefined)
-		return location;
+async function findSymbolInDocument(document: ZingDocument, symbol: string, cursorLine: number): Promise<SymbolDefinition | undefined> {
+	const enclosing = findEnclosingMember(document.ast, cursorLine);
+	if (enclosing != undefined) {
+		const localDefs = collectDefRangesFromMember(enclosing, document.uri);
+		const result = findSymbol(localDefs, symbol);
+		if (result != undefined)
+			return result;
+	}
+
+	const result = findSymbol(document.definitionRanges, symbol);
+	if (result != undefined)
+		return result;
 
 	for (let includePath of document.includes) {
 		let includeUri = vscode.Uri.joinPath(document.uri, "..", includePath);
@@ -62,9 +81,9 @@ async function findSymbolInDocument(document: ZingDocument, symbol: string): Pro
 			let bytes = await vscode.workspace.fs.readFile(includeUri);
 			let text = new TextDecoder().decode(bytes);
 
-			location = await findSymbolInDocument(parseZingDocument(text, includeUri), symbol);
-			if (location != undefined)
-				return location;
+			const found = await findSymbolInDocument(parseZingDocument(text, includeUri), symbol, cursorLine);
+			if (found != undefined)
+				return found;
 		} catch (e) {
 			// Ignore errors reading the file
 		}
@@ -73,14 +92,18 @@ async function findSymbolInDocument(document: ZingDocument, symbol: string): Pro
 
 
 export let definitionProvider: vscode.DefinitionProvider = {
-	async provideDefinition(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken): Promise<vscode.Definition | vscode.LocationLink[] | null> {
+	async provideDefinition(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken): Promise<vscode.Definition | vscode.DefinitionLink[] | null> {
 		let line = document.lineAt(position.line).text;
 		let symbol = symbolAt(line, position.character);
 
 		if (symbol != undefined) {
-			let location = await findSymbolInDocument(parseZingDocument(document.getText(), document.uri), symbol);
-			if (location != undefined) {
-				return location;
+			const sym = await findSymbolInDocument(parseZingDocument(document.getText(), document.uri), symbol, position.line);
+			if (sym != undefined) {
+				return [{
+					targetUri: sym.uri,
+					targetRange: sym.fullRange,
+					targetSelectionRange: sym.nameRange,
+				}];
 			}
 		}
 
