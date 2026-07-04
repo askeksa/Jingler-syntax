@@ -1,21 +1,37 @@
 import { Token, TokenKind, filterTokens } from "./tokenizer";
 import {
-	Position, ContextKind, MemberKind, ScopeKind, WidthKind, ValueTypeKind,
-	ExplicitType, PatternItem, MidiParam, MidiMapping, MidiNoteRange,
+	Position, ContextKind, MemberKind, WidthKind,
+	ExplicitType, PatternItem, MidiParam, MidiMapping,
 	Parameter, Member, Include, Program, ParseError,
 	Statement,
 	Expression, ForCombinator,
 } from "./ast";
+import { MidiParser, MidiParserContext } from "./midi_parser";
 
 const VALID_COMBINATORS = new Set(["add", "max", "min", "mul"]);
 
-class Parser {
+const TYPE_TOKENS: Record<string, (t: ExplicitType) => void> = {
+	Static:  t => { t.scope = "Static"; },
+	Dynamic: t => { t.scope = "Dynamic"; },
+	Mono:    t => { t.width = "Mono"; },
+	Stereo:  t => { t.width = "Stereo"; },
+	Generic: t => { t.width = "Generic"; },
+	NumberKw: t => { t.valueType = "Number"; },
+	BoolKw:  t => { t.valueType = "Bool"; },
+	Buffer:  t => { t.valueType = "Buffer"; },
+};
+
+const TYPE_TOKEN_KINDS = new Set<string>(Object.keys(TYPE_TOKENS));
+
+class Parser implements MidiParserContext {
 	private tokens: Token[];
 	private pos: number = 0;
 	private errors: ParseError[] = [];
+	private midi: MidiParser;
 
 	constructor(tokens: Token[]) {
 		this.tokens = filterTokens(tokens);
+		this.midi = new MidiParser(this);
 	}
 
 	private error(message: string): void {
@@ -23,23 +39,25 @@ class Parser {
 		this.errors.push({ message, position: this.posFromToken(tok) });
 	}
 
-	private peek(): Token {
+	// --- MidiParserContext members (public for interface) ---
+
+	public peek(): Token {
 		return this.tokens[this.pos] || { kind: "Eof", text: "", line: 0, character: 0 };
 	}
 
-	private peekKind(): TokenKind {
+	public peekKind(): TokenKind {
 		return this.peek().kind;
 	}
 
-	private peekText(): string {
+	public peekText(): string {
 		return this.peek().text;
 	}
 
-	private peekAhead(offset: number): TokenKind {
+	public peekAhead(offset: number): TokenKind {
 		return this.tokens[this.pos + offset]?.kind || "Eof";
 	}
 
-	private consume(expected?: TokenKind): Token {
+	public consume(expected?: TokenKind): Token {
 		const t = this.peek();
 		if (expected && t.kind !== expected) {
 			// skip — parser is lenient
@@ -48,7 +66,7 @@ class Parser {
 		return t;
 	}
 
-	private expect(kind: TokenKind): Token | null {
+	public expect(kind: TokenKind): Token | null {
 		if (this.peekKind() === kind) {
 			return this.consume();
 		}
@@ -56,17 +74,47 @@ class Parser {
 		return null;
 	}
 
-	private atKinds(...kinds: TokenKind[]): boolean {
-		return kinds.includes(this.peekKind());
+	public posFromToken(t: Token): Position {
+		return { line: t.line, character: t.character };
 	}
 
-	private posFromToken(t: Token): Position {
-		return { line: t.line, character: t.character };
+	// --- Internal helpers ---
+
+	private atKinds(...kinds: TokenKind[]): boolean {
+		return kinds.includes(this.peekKind());
 	}
 
 	private endPosition(): { endLine: number; endCharacter: number } {
 		const t = this.pos > 0 ? this.tokens[this.pos - 1] : this.peek();
 		return { endLine: t.line, endCharacter: t.character + t.text.length };
+	}
+
+	// --- Bracket helpers ---
+
+	private skipBracketBlock(open: TokenKind, close: TokenKind): void {
+		this.consume(); // consume opening bracket
+		let depth = 1;
+		while (depth > 0 && this.peekKind() !== "Eof") {
+			if (this.peekKind() === open) depth++;
+			if (this.peekKind() === close) depth--;
+			this.consume();
+		}
+	}
+
+	// Lookahead: skip Num + LBrace, traverse braces, check for ColonColon
+	public skipBracesToColonColon(): boolean {
+		const saved = this.pos;
+		this.pos += 2; // skip Num and LBrace
+		let depth = 1;
+		while (this.pos < this.tokens.length && depth > 0) {
+			const tk = this.tokens[this.pos].kind;
+			if (tk === "LBrace") depth++;
+			else if (tk === "RBrace") depth--;
+			this.pos++;
+		}
+		const isMidi = this.peekKind() === "ColonColon";
+		this.pos = saved;
+		return isMidi;
 	}
 
 	// --- Program ---
@@ -96,10 +144,10 @@ class Parser {
 		if (k === "Global" || k === "Note" || k === "Module" || k === "Function" || k === "Instrument") {
 			return true;
 		}
-		if (this.isMidiParamStart()) {
+		if (this.midi.isMidiParamStart()) {
 			const saved = this.pos;
-			while (this.isMidiParamStart()) {
-				this.consumeMidiParam();
+			while (this.midi.isMidiParamStart()) {
+				this.midi.consumeMidiParam();
 			}
 			const next = this.peekKind();
 			this.pos = saved;
@@ -114,143 +162,6 @@ class Parser {
 		while (!memberStarts.includes(this.peekKind())) {
 			this.consume();
 		}
-	}
-
-	// --- MIDI param helpers ---
-
-	// Member declaration: only Id "::" (MidiParam in real grammar)
-	private isMidiParamStart(): boolean {
-		return this.peekKind() === "Identifier" && this.peekAhead(1) === "ColonColon";
-	}
-
-	// Call expression: Id "::" | Num "::" | Num {...} "::" (MidiArg in real grammar)
-	private isMidiArgStart(): boolean {
-		if (this.peekKind() === "Identifier" && this.peekAhead(1) === "ColonColon") return true;
-		if (this.peekKind() === "Decimal" || this.peekKind() === "Hex") {
-			if (this.peekAhead(1) === "ColonColon") return true;
-			if (this.peekAhead(1) === "LBrace") {
-				const saved = this.pos;
-				this.pos += 2; // skip Num and LBrace
-				let depth = 1;
-				while (this.pos < this.tokens.length && depth > 0) {
-					const tk = this.tokens[this.pos].kind;
-					if (tk === "LBrace") depth++;
-					else if (tk === "RBrace") depth--;
-					this.pos++;
-				}
-				const isMidi = this.peekKind() === "ColonColon";
-				this.pos = saved;
-				return isMidi;
-			}
-		}
-		return false;
-	}
-
-	// Member declaration: Id "::" → MidiParam
-	private consumeMidiParam(): MidiParam {
-		const startTok = this.peek();
-		const position = this.posFromToken(startTok);
-		const name = this.consume().text;
-		this.expect("ColonColon");
-		return { name, position };
-	}
-
-	// Call expression: Uint "::" | Uint {...} "::" | Id "::" → MidiMapping
-	private consumeMidiArg(): MidiMapping {
-		const startTok = this.peek();
-		const position = this.posFromToken(startTok);
-		const k = this.peekKind();
-
-		if (k === "Identifier") {
-			const name = this.consume().text;
-			this.expect("ColonColon");
-			return { kind: "Named", name, position };
-		}
-
-		if (k === "Decimal" || k === "Hex") {
-			const channelText = this.consume().text;
-			const channel = parseInt(channelText, channelText.startsWith("0x") || channelText.startsWith("0X") ? 16 : 10);
-
-			if (this.peekKind() === "LBrace") {
-				this.consume(); // LBrace
-				const { range, transposeTo } = this.parseMidiNoteRangeTranspose();
-				this.expect("RBrace");
-				this.expect("ColonColon");
-				return { kind: "Value", channel, range, transposeTo, position };
-			}
-
-			this.expect("ColonColon");
-			return {
-				kind: "Value",
-				channel,
-				range: { start: 0, end: 127, position },
-				transposeTo: 255,
-				position,
-			};
-		}
-
-		// Fallback
-		this.consume();
-		return { kind: "Named", name: "", position };
-	}
-
-	private parseMidiNoteRangeTranspose(): { range: MidiNoteRange; transposeTo: number } {
-		const { start, end, position } = this.parseMidiNoteRange();
-		let transposeTo = start;
-		if (this.peekKind() === "Divide") {
-			this.consume();
-			transposeTo = this.parseMidiNote();
-		}
-		return { range: { start, end, position }, transposeTo };
-	}
-
-	// MidiNoteRange → MidiNote | ".." MidiNote | MidiNote ".." | MidiNote ".." MidiNote
-	private parseMidiNoteRange(): { start: number; end: number; position: Position } {
-		const pos = this.posFromToken(this.peek());
-
-		if (this.peekKind() === "DotDot") {
-			this.consume();
-			const end = this.parseMidiNote();
-			return { start: 255, end, position: pos };
-		}
-
-		const start = this.parseMidiNote();
-
-		if (this.peekKind() === "DotDot") {
-			this.consume();
-			if (this.peekKind() === "RBrace") {
-				return { start, end: 127, position: pos };
-			}
-			const end = this.parseMidiNote();
-			return { start, end, position: pos };
-		}
-
-		return { start, end: start, position: pos };
-	}
-
-	// MidiNote → [A-G] [-#] [0-9] (e.g. C4, D#3, G#5)
-	// Real Zing: notebase[C=0,D=2,E=4,F=5,G=7,A=9,B=11] + sharp + octave*12
-	private parseMidiNote(): number {
-		const tok = this.consume();
-		const text = tok.text;
-
-		// Single token like "C4" or "C#4"
-		const match = text.match(/^([A-Ga-g])([-#]?)(\d+)$/);
-		if (match) {
-			const noteBase: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-			const base = noteBase[match[1].toUpperCase()];
-			const sharp = match[2] === "#" ? 1 : 0;
-			const octave = parseInt(match[3], 10);
-			return base + sharp + octave * 12;
-		}
-
-		// Separate tokens: C # 4
-		const noteBase: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-		const base = noteBase[text.toUpperCase()];
-		const sharp = this.peekKind() === "Identifier" && this.peekText() === "#" ? this.consume() : null;
-		const octave = this.consume().text;
-		const octaveNum = parseInt(octave, 10);
-		return base + (sharp ? 1 : 0) + octaveNum * 12;
 	}
 
 	// --- Include ---
@@ -347,8 +258,8 @@ class Parser {
 
 		// MIDI params
 		const midiParams: MidiParam[] = [];
-		while (this.isMidiParamStart()) {
-			midiParams.push(this.consumeMidiParam());
+		while (this.midi.isMidiParamStart()) {
+			midiParams.push(this.midi.consumeMidiParam());
 		}
 
 		// Name — single Id only (zing.lalrpop:33)
@@ -421,23 +332,13 @@ class Parser {
 	}
 
 	private parseExplicitType(): ExplicitType {
-		let scope: ScopeKind | undefined;
-		let width: WidthKind | undefined;
-		let valueType: ValueTypeKind | undefined;
-
-		while (this.atKinds("Static", "Dynamic", "Mono", "Stereo", "Generic", "NumberKw", "BoolKw", "Buffer")) {
+		const type: ExplicitType = { scope: undefined, width: undefined, valueType: undefined };
+		while (TYPE_TOKEN_KINDS.has(this.peekKind())) {
 			const k = this.peekKind();
-			if (k === "Static") { this.consume(); scope = "Static"; }
-			else if (k === "Dynamic") { this.consume(); scope = "Dynamic"; }
-			else if (k === "Mono") { this.consume(); width = "Mono"; }
-			else if (k === "Stereo") { this.consume(); width = "Stereo"; }
-			else if (k === "Generic") { this.consume(); width = "Generic"; }
-			else if (k === "NumberKw") { this.consume(); valueType = "Number"; }
-			else if (k === "BoolKw") { this.consume(); valueType = "Bool"; }
-			else if (k === "Buffer") { this.consume(); valueType = "Buffer"; }
+			this.consume();
+			TYPE_TOKENS[k as string](type);
 		}
-
-		return { scope, width, valueType };
+		return type;
 	}
 
 	// --- Statement ---
@@ -548,29 +449,11 @@ class Parser {
 	private skipPrimary(): void {
 		const k = this.peekKind();
 		if (k === "LParen") {
-			this.consume();
-			let depth = 1;
-			while (depth > 0 && this.peekKind() !== "Eof") {
-				if (this.peekKind() === "LParen") depth++;
-				if (this.peekKind() === "RParen") depth--;
-				this.consume();
-			}
+			this.skipBracketBlock("LParen", "RParen");
 		} else if (k === "LSquare") {
-			this.consume();
-			let depth = 1;
-			while (depth > 0 && this.peekKind() !== "Eof") {
-				if (this.peekKind() === "LSquare") depth++;
-				if (this.peekKind() === "RSquare") depth--;
-				this.consume();
-			}
+			this.skipBracketBlock("LSquare", "RSquare");
 		} else if (k === "LBrace") {
-			this.consume();
-			let depth = 1;
-			while (depth > 0 && this.peekKind() !== "Eof") {
-				if (this.peekKind() === "LBrace") depth++;
-				if (this.peekKind() === "RBrace") depth--;
-				this.consume();
-			}
+			this.skipBracketBlock("LBrace", "RBrace");
 		} else {
 			this.consume();
 		}
@@ -615,8 +498,7 @@ class Parser {
 		return left;
 	}
 
-	// Unary: UnOp Primary | Unary "." Id (args)? | Unary "." Uint | Primary
-	// (method calls and tuple index at unary level, not primary)
+	// Unary: UnOp Primary | Primary with postfix chain (.Uint, .Id(args), [expr])
 
 	private parseUnary(): Expression {
 		if (this.peekKind() === "Minus" || this.peekKind() === "Not") {
@@ -626,9 +508,12 @@ class Parser {
 			return { kind: "Unary", operator: op, operand, position: this.posFromToken(opTok) };
 		}
 
-		let result = this.parsePrimary();
+		return this.parsePostfixChain(this.parsePrimary());
+	}
 
-		// Chain: .Uint (tuple index), .Id (args) (method call), [expr] (buffer index)
+	// Postfix chain: .Uint (tuple index), .Id(args) (method call), [expr] (buffer index)
+	private parsePostfixChain(expr: Expression): Expression {
+		let result = expr;
 		while (this.peekKind() === "Dot" || this.peekKind() === "LSquare") {
 			if (this.peekKind() === "Dot") {
 				this.consume();
@@ -653,7 +538,6 @@ class Parser {
 				result = { kind: "BufferIndex", target: result, index, position: this.posFromToken(index as any || { line: 0, character: 0 }) };
 			}
 		}
-
 		return result;
 	}
 
@@ -664,7 +548,7 @@ class Parser {
 
 		// Number literal — but check first if it's a MIDI arg start (e.g. 1::proc(x))
 		if (k === "Decimal" || k === "Hex" || k === "Inf") {
-			if (this.isMidiArgStart()) {
+			if (this.midi.isMidiArgStart()) {
 				return this.parseCallOrVar();
 			}
 			this.consume();
@@ -712,7 +596,7 @@ class Parser {
 		}
 
 		// Call or variable — possibly with MIDI args
-		if (this.isMidiArgStart() || k === "Identifier") {
+		if (this.midi.isMidiArgStart() || k === "Identifier") {
 			return this.parseCallOrVar();
 		}
 
@@ -732,8 +616,8 @@ class Parser {
 
 		// MIDI args
 		const midiArgs: MidiMapping[] = [];
-		while (this.isMidiArgStart()) {
-			midiArgs.push(this.consumeMidiArg());
+		while (this.midi.isMidiArgStart()) {
+			midiArgs.push(this.midi.consumeMidiArg());
 		}
 
 		// Name (Identifier)
