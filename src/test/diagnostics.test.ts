@@ -462,4 +462,51 @@ module main -> (out)
 		const diags = await getDiagnostics(text);
 		assert.strictEqual(diags.length, 0);
 	});
+
+	// --- Context errors ---
+
+	test("'main' must be a global module", async () => {
+		const text = `note module main -> (out)
+  out = 1
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("'main' must be a global module")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("'main' can't have MIDI inputs", async () => {
+		const text = `module kick::main -> (out)
+  out = 1
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("'main' can't have MIDI inputs")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("Instruments can't be global", async () => {
+		const text = `global instrument myinst -> (out)
+  out = 1
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Instruments can't be global")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("Instruments have implicit note context", async () => {
+		const text = `note instrument myinst -> (out)
+  out = 1
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Instruments have implicit note context")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("Only global modules can have MIDI inputs", async () => {
+		const text = `note module kick::myMod -> (out)
+  out = 1
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Only global modules can have MIDI inputs")), `expected context error, got: ${messages.join(", ")}`);
+	});
 });

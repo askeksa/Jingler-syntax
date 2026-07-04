@@ -415,6 +415,72 @@ async function resolveIncludePaths(
 }
 
 /* ------------------------------------------------------------------ */
+/*  Context errors                                                     */
+/* ------------------------------------------------------------------ */
+
+function diagnosticsFromContext(ast: Program): vscode.Diagnostic[] {
+	const diagnostics: vscode.Diagnostic[] = [];
+
+	for (const member of ast.members) {
+		if (member.name === "main") {
+			if (member.context === "Global" && member.kind === "Module") {
+				if (member.midiParams.length > 0) {
+					const pos = member.midiParams[0].position;
+					diagnostics.push(errorDiagnostic(
+						new vscode.Range(
+							new vscode.Position(pos.line, pos.character),
+							new vscode.Position(pos.line, pos.character + member.midiParams[0].name.length)
+						),
+						"'main' can't have MIDI inputs."
+					));
+				}
+			} else {
+				diagnostics.push(errorDiagnostic(
+					new vscode.Range(
+						new vscode.Position(member.namePosition.line, member.namePosition.character),
+						new vscode.Position(member.namePosition.line, member.namePosition.character + member.name.length)
+					),
+					"'main' must be a global module."
+				));
+			}
+		}
+
+		if (member.kind === "Instrument") {
+			if (member.context === "Global") {
+				diagnostics.push(errorDiagnostic(
+					new vscode.Range(
+						new vscode.Position(member.namePosition.line, member.namePosition.character),
+						new vscode.Position(member.namePosition.line, member.namePosition.character + member.name.length)
+					),
+					"Instruments can't be global."
+				));
+			} else if (member.context === "Note") {
+				diagnostics.push(errorDiagnostic(
+					new vscode.Range(
+						new vscode.Position(member.namePosition.line, member.namePosition.character),
+						new vscode.Position(member.namePosition.line, member.namePosition.character + member.name.length)
+					),
+					"Instruments have implicit note context."
+				));
+			}
+		}
+
+		if (member.kind !== "Instrument" && member.context !== "Global" && member.midiParams.length > 0) {
+			const pos = member.midiParams[0].position;
+			diagnostics.push(errorDiagnostic(
+				new vscode.Range(
+					new vscode.Position(pos.line, pos.character),
+					new vscode.Position(pos.line, pos.character + member.midiParams[0].name.length)
+				),
+				"Only global modules can have MIDI inputs."
+			));
+		}
+	}
+
+	return diagnostics;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Duplicate name detection                                           */
 /* ------------------------------------------------------------------ */
 
@@ -520,9 +586,10 @@ function diagnosticsFromMemberDuplicates(member: Member): vscode.Diagnostic[] {
 export async function computeDiagnostics(document: vscode.TextDocument): Promise<vscode.Diagnostic[]> {
 	const doc = parseZingDocument(document.getText(), document.uri);
 
-	const [parseDiagnostics, duplicateDiagnostics, unresolvedDiagnostics, includeDiagnostics] = await Promise.all([
+	const [parseDiagnostics, duplicateDiagnostics, contextDiagnostics, unresolvedDiagnostics, includeDiagnostics] = await Promise.all([
 		Promise.resolve(diagnosticsFromParseErrors(doc.ast)),
 		Promise.resolve(diagnosticsFromDuplicates(doc.ast)),
+		Promise.resolve(diagnosticsFromContext(doc.ast)),
 		diagnosticsFromUnresolved(doc),
 		diagnosticsFromIncludes(doc.ast, document.uri),
 	]);
@@ -530,6 +597,7 @@ export async function computeDiagnostics(document: vscode.TextDocument): Promise
 	return [
 		...parseDiagnostics,
 		...duplicateDiagnostics,
+		...contextDiagnostics,
 		...unresolvedDiagnostics,
 		...includeDiagnostics,
 	];

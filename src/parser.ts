@@ -311,12 +311,15 @@ class Parser {
 
 		// Context
 		let context: ContextKind = "Universal";
+		let explicitContext = false;
 		if (this.peekKind() === "Global") {
 			this.consume();
 			context = "Global";
+			explicitContext = true;
 		} else if (this.peekKind() === "Note") {
 			this.consume();
 			context = "Note";
+			explicitContext = true;
 		}
 
 		// Kind
@@ -330,6 +333,15 @@ class Parser {
 		} else if (this.peekKind() === "Instrument") {
 			this.consume();
 			kind = "Instrument";
+		}
+
+		// Apply default context if not explicitly set (matches real compiler)
+		if (!explicitContext) {
+			if (kind === "Module") {
+				context = "Global";
+			}
+			// Function → Universal (already default)
+			// Instrument → Note (handled in diagnostics)
 		}
 
 		// MIDI params

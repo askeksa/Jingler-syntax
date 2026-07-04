@@ -52,7 +52,7 @@ suite("Parser", () => {
 			assert.strictEqual(ast.members.length, 1);
 			assert.strictEqual(ast.members[0].kind, "Module");
 			assert.strictEqual(ast.members[0].name, "MyMod");
-			assert.strictEqual(ast.members[0].context, "Universal");
+			assert.strictEqual(ast.members[0].context, "Global");
 		});
 
 		test("function declaration", () => {

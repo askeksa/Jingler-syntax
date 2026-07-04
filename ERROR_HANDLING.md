@@ -21,16 +21,15 @@ From `names.rs:152-165`:
 
 We have **none** of these.
 
-## 3. Missing: Context Errors
+## 3. Context Errors (Fixed)
 
 From `compiler.rs:371-407`:
-- `"No 'main' module"` — required entry point
 - `"'main' must be a global module"` — wrong context
 - `"'main' can't have MIDI inputs"` — invalid config
 - `"Instruments can't be global"` / `"Instruments have implicit note context"` — wrong context
 - `"Only global modules can have MIDI inputs"` — MIDI on non-global
 
-We have **none** of these.
+**Fixed**: All 5 context errors now detected. Parser also defaults `module` to `Global` context (matching real compiler), `function` to `Universal`. "No 'main' module" intentionally skipped (single-file extension can't know full program).
 
 ## 4. Missing: Type Errors (~30+ error types)
 
@@ -124,7 +123,7 @@ The real compiler resolves includes relative to the **including file's parent di
 | Parse errors | 4 types | 1 generic | Minor |
 | Forward refs | Allowed (with 2 CG exceptions) | Allowed + 2 exceptions flagged | **Fixed** |
 | Duplicate names | 3 types | All 5 types | **Fixed** |
-| Context errors | 5 types | None | Missing |
+| Context errors | 5 types | All 5 detected | **Fixed** |
 | Type errors | 25+ types | None | Missing |
 | Call context | 10+ types | None | Missing |
 | Arg count | 1 type | None | Missing |
@@ -140,7 +139,7 @@ The real compiler resolves includes relative to the **including file's parent di
 2. ~~**Fix include path resolution** — DONE (2026-07-04). Includes now resolve relative to each file's parent directory. Recursive include chains are handled correctly with circular-include guard.~~
 3. ~~**Add duplicate name detection** — DONE (2026-07-04). Detects: duplicate members, parameters, inputs, outputs, local variables, MIDI inputs, and built-in shadowing for members/parameters. Output names assigned in body are excluded (expected pattern).~~
 4. ~~**Add combinator validation** — DONE (2026-07-04). Parser validates combinator against `{add, max, min, mul}`, emits parse error for invalid names.~~
-5. **Add context errors** — main module, instrument, and note/global context validation
+5. ~~**Add context errors** — DONE (2026-07-04). All 5 context errors detected. Parser defaults `module` to `Global`, `function` to `Universal`. "No 'main' module" skipped (single-file limitation).~~
 6. **Add argument count errors** — compare call args to known signatures
 7. **Add call context errors** — module/function/instrument call-site validation
 8. **Add bytecode emitter errors** — tuple indexing unsupported, built-in module in repetition body
