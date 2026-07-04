@@ -1,0 +1,36 @@
+src/test/diagnostics.test.ts
+  s_e78efc6f53edd9::t_e91f1a4915d617 355,362
+  s_e78efc6f53edd9::t_841cc2943df199 71,78,81,90-128
+ERROR_HANDLING.md
+  s_e78efc6f53edd9::t_270f220671afac 1-8,14-101,113-115,117-124,126-132,134-138,140-145
+  s_e78efc6f53edd9::t_814b9b42ce39af 125
+  s_e78efc6f53edd9::t_146fca69e41e7f 133
+  s_e78efc6f53edd9::t_590d50903292c9 139
+  s_e78efc6f53edd9::t_4b9d6ec0b819b3 146-148
+  s_e78efc6f53edd9::t_1948b450138aa0 9-13
+  s_e78efc6f53edd9::t_d814da0633c258 116
+  s_e78efc6f53edd9::t_fe583485e0b9fe 102-112
+src/diagnostics.ts
+  s_e78efc6f53edd9::t_cba0028a835c9f 386-391
+  s_e78efc6f53edd9::t_8a40157e9596d0 94-95,98-105,107-109,111-116,118,121,124,126-127,129,132,135,137-142,144,146-147,150-152,155,159,162-163,166-167,170,173-174,177,180,187-240,243-302,318,321-322,325-326,336,344,354,378,380,383-384,392-407,415,420-439,442-473,481-491
+  s_e78efc6f53edd9::t_f70dc87686a6a1 241-242
+  s_e78efc6f53edd9::t_f06f1db5e8aa75 106
+  s_e78efc6f53edd9::t_d96ae0e8986859 79,82,88
+  s_e78efc6f53edd9::t_0f92ef48eb15b7 440-441
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c7060d57893ca31ba5b85bf4c40924c42a8d0ada",
+  "prompts": {},
+  "sessions": {
+    "s_e78efc6f53edd9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0db92e82fffetCAvC8VRJHpMV3",
+        "model": "qwen36"
+      },
+      "human_author": "Carsten Elton Sørensen <cso@rift.dk>"
+    }
+  }
+}
