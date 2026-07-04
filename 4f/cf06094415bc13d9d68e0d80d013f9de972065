@@ -1,0 +1,34 @@
+src/hover.ts
+  s_e78efc6f53edd9::t_503bcfd3a4235a 242-272
+  s_e78efc6f53edd9::t_ce61fc7abf4b4c 292-294,296-297,300-302,305
+  s_e78efc6f53edd9::t_2a1cdbe75acf54 17-19
+  s_e78efc6f53edd9::t_b6d8141fdbd13c 298-299
+src/definitions.ts
+  s_e78efc6f53edd9::t_50dc8c5874163d 10
+  s_e78efc6f53edd9::t_af0ec4ec33a0f6 132,134-179
+  s_e78efc6f53edd9::t_6aed9dc48a1591 129-131
+  s_e78efc6f53edd9::t_784054f61d86e3 133
+src/test/hover.test.ts
+  s_e78efc6f53edd9::t_d76c2e5dfbf3ee 607,610
+  s_e78efc6f53edd9::t_aef78919094c5f 603
+  s_e78efc6f53edd9::t_6c3ded4f0baba0 616
+  s_e78efc6f53edd9::t_2b13302183aa12 606,609
+  s_e78efc6f53edd9::t_12cfd6d079f7d1 612-615,617-622
+  s_e78efc6f53edd9::t_7d5dbe461a4c2b 576-602,604-605,608,611
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4fcf06094415bc13d9d68e0d80d013f9de972065",
+  "prompts": {},
+  "sessions": {
+    "s_e78efc6f53edd9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0db92e82fffetCAvC8VRJHpMV3",
+        "model": "qwen36"
+      },
+      "human_author": "Carsten Elton Sørensen <cso@rift.dk>"
+    }
+  }
+}
