@@ -1,0 +1,149 @@
+test-workspace/core.zing
+  s_e78efc6f53edd9::t_ac8d825b9db011 2-5,7-14
+  s_e78efc6f53edd9::t_7c3fdabbb5f30b 6
+  s_e78efc6f53edd9::t_753c79ba6744c4 1,15-34,36-44
+  s_e78efc6f53edd9::t_26fbc282fac85c 35
+src/definitions.ts
+  s_e78efc6f53edd9::t_805693e6ef29ac 10,24-25,77-79,89
+  s_e78efc6f53edd9::t_93096c052144d9 76
+test-workspace/utils.zing
+  s_e78efc6f53edd9::t_0b5a2ea35ee003 1,8-10,14-29,32
+  s_e78efc6f53edd9::t_04fb877a8a653a 30
+  s_e78efc6f53edd9::t_e2b687ff2756e1 2-7,11-13
+  s_e78efc6f53edd9::t_a3162014e23059 31
+test-workspace/instruments.zing
+  s_e78efc6f53edd9::t_2967ee821bfca3 2-4,6-9,11-15
+  s_e78efc6f53edd9::t_1daa25f686f280 22
+  s_e78efc6f53edd9::t_d4425c3ad75222 10
+  s_e78efc6f53edd9::t_5477c915fb34cf 1,16-17,19-21,23
+  s_e78efc6f53edd9::t_adb2e0329b5897 5
+  s_e78efc6f53edd9::t_0ad69a8ed9f07b 18
+src/tokenizer.ts
+  s_e78efc6f53edd9::t_1cd0f87583fdeb 351,354
+  s_e78efc6f53edd9::t_477628c7aaee28 237,240-249
+  s_e78efc6f53edd9::t_37136ab27f2c24 22
+  s_e78efc6f53edd9::t_08f62a38b36c1e 360-361
+  s_e78efc6f53edd9::t_570ace69f3bdb0 202,213
+  s_e78efc6f53edd9::t_af033d7b01d243 70
+  s_e78efc6f53edd9::t_a423d7acd69a26 146-150,152
+  s_e78efc6f53edd9::t_cb13a5665013b8 300
+  s_e78efc6f53edd9::t_27ba980e8d52f6 1-6,42,62-69,71-93,104-117,142-144,153-167,169-174,176-180,182-186,188,190-194,197-201,203-212,214,217-227,230-236,238-239,250-251,253-256,258-270,272-273,276-283,286-291,294-297,301,303-305,307-312,314-318,320-321,323-324,326-328,330-332,335,337-342,345-346,348-350,352-353,355-357,359
+  s_e78efc6f53edd9::t_8709e653e1a1dc 334,336,344
+src/ast.ts
+  s_e78efc6f53edd9::t_ea15824aa2b9b4 1-11,13-25,50,52-79,85-87
+  s_e78efc6f53edd9::t_1a0a840b30d7ea 12
+  s_e78efc6f53edd9::t_bf64dab962f9fc 225
+  s_e78efc6f53edd9::t_4e6a04a1a65710 88,90-163,165-224,226-227
+  s_e78efc6f53edd9::t_80987bf6539f95 26-49,51
+  s_e78efc6f53edd9::t_bac172d3c3eb44 80-84,89
+  s_e78efc6f53edd9::t_11c3f59ee55898 164
+src/parser.ts
+  s_e78efc6f53edd9::t_999cd20208a9f3 89-91,93,96-99,101-102
+  s_e78efc6f53edd9::t_65c3f42b4d6ec4 289-290
+  s_e78efc6f53edd9::t_2ad2ac601b0b39 469,486
+  s_e78efc6f53edd9::t_22c7478940d350 325,331-332,336,588-590,599-628,672,674,726
+  s_e78efc6f53edd9::t_acfb52de79063d 405,414
+  s_e78efc6f53edd9::t_5e72729ccecea8 509-512
+  s_e78efc6f53edd9::t_abbaf392ae8efe 483-485,489
+  s_e78efc6f53edd9::t_8ccbb932aa638a 6-7
+  s_e78efc6f53edd9::t_16572e463dc131 1-3,8-12,14-18,24-35,40-52,54-83,85-88,103-104,249-252,253,255-272,275-288,291-324,326,329-330,333-335,337,345-375,378-388,391-404,406-413,415-424,435-450,453-468,470-482,487-488,490-508,513-587,591-598,629-635,637,641-671,673,675-685,687-689,691,693,695,697-704,708-713,715-725,727-751,754-767
+  s_e78efc6f53edd9::t_7e18569f0ecb18 100
+  s_e78efc6f53edd9::t_de3d6fdb1201c8 36-39
+  s_e78efc6f53edd9::t_f13ec0f5942437 686
+  s_e78efc6f53edd9::t_8767a2ca6bd255 227-229,232,238-239
+  s_e78efc6f53edd9::t_8101c5ce29db5d 53
+  s_e78efc6f53edd9::t_417aa2305b6bc0 193-194
+  s_e78efc6f53edd9::t_a337194761f612 273-274
+  s_e78efc6f53edd9::t_e85ce028a4b4c8 254
+  s_e78efc6f53edd9::t_a6496af974da9d 5,13,19-21
+  s_e78efc6f53edd9::t_1cabc5e71e1d83 338-339
+  s_e78efc6f53edd9::t_bd308e38385d7e 22,112-113,115,123-141,143-145,150,155-157,161-163,166-168,173-174,183-186,247-248
+  s_e78efc6f53edd9::t_47b6637bb993fc 142,146-149,151-154,158-160,164-165,169-172,175-182,187-192,195-223,226,243-245
+  s_e78efc6f53edd9::t_6386ed8d47f50b 340-344
+  s_e78efc6f53edd9::t_72f73612c33ceb 706
+  s_e78efc6f53edd9::t_75633cb228a640 84
+  s_e78efc6f53edd9::t_41cfe3c71fa810 425-434
+  s_e78efc6f53edd9::t_d0cc408833b5dd 636,638-640
+  s_e78efc6f53edd9::t_e2cb097ab808e0 105-111
+  s_e78efc6f53edd9::t_6734f543ff2cf0 705,707,714
+  s_e78efc6f53edd9::t_8305bc6512f194 92,94-95
+  s_e78efc6f53edd9::t_88752f3e7adc91 376-377
+  s_e78efc6f53edd9::t_ad0a3d04ef431d 690,694,696
+  s_e78efc6f53edd9::t_1b1b98138c5cb2 327-328
+  s_e78efc6f53edd9::t_7cc69aa5c9821f 692
+  s_e78efc6f53edd9::t_3fb26f02cdfbd7 224-225,230-231,233-237,240-242,246
+  s_e78efc6f53edd9::t_dbdeb7b41cfe69 4
+  s_e78efc6f53edd9::t_63b72a3521d9ea 752-753
+  s_e78efc6f53edd9::t_4721c47c63ab87 114,116-122
+  s_e78efc6f53edd9::t_4ab555557d48b5 451-452
+  s_e78efc6f53edd9::t_dd104f78746e95 389-390
+  s_e78efc6f53edd9::t_045dcfa4a5641f 23
+src/document_symbols.ts
+  s_e78efc6f53edd9::t_8e0bd9ebe05f20 3-4,10,12-14,28-36,40,42,45,47,49,67
+  s_e78efc6f53edd9::t_efeb763bf7d20a 41
+  s_e78efc6f53edd9::t_76c96b5d8aeab2 48
+src/test/parser.test.ts
+  s_e78efc6f53edd9::t_15a8dd79b6db5f 1-81,83-84,87-101,104,186-294,309-326,422
+  s_e78efc6f53edd9::t_9a7ccdf35fe857 82
+  s_e78efc6f53edd9::t_96e9905661bf6e 295-308
+  s_e78efc6f53edd9::t_d2d6ba6e1e8364 85-86
+  s_e78efc6f53edd9::t_d36a54b74c1643 134-136,145-147,155
+  s_e78efc6f53edd9::t_04fddd9df86255 108-113
+  s_e78efc6f53edd9::t_2b399f870535ee 353
+  s_e78efc6f53edd9::t_90c481f7e6428f 102-103,105-107,114-133,137-144,148-154,156-169,172-177,179-183,185
+  s_e78efc6f53edd9::t_0e4f5cdd2f7fe4 402
+  s_e78efc6f53edd9::t_3aee0517238135 378,383,388,393
+  s_e78efc6f53edd9::t_a10d9c50320d09 327-352,354-377,379-382,384-387,389-392,394-401,403-421
+  s_e78efc6f53edd9::t_48ef60d472c9f9 170-171,178,184
+src/test/document_symbols.test.ts
+  s_e78efc6f53edd9::t_14e88353c002cd 41
+  s_e78efc6f53edd9::t_9972040463a6c4 62-74
+ZING.md
+  s_e78efc6f53edd9::t_2546328a8710d4 425
+  s_e78efc6f53edd9::t_0e86ef46810b6e 223-224
+  s_e78efc6f53edd9::t_4bb14584b814ae 364-366
+  s_e78efc6f53edd9::t_90504b5c08d91f 292
+  s_e78efc6f53edd9::t_3dfacb5d4be62d 122
+  s_e78efc6f53edd9::t_08219029a4e7a2 325
+  s_e78efc6f53edd9::t_cc4753ef153153 76
+  s_e78efc6f53edd9::t_ee876048761d85 229-231,236-242,245-247
+  s_e78efc6f53edd9::t_880afdb11756d8 248
+AGENTS.md
+  s_e78efc6f53edd9::t_16ad76a4f61910 33-37
+test-workspace/main.zing
+  s_e78efc6f53edd9::t_21fb5877305f7e 3-5,7-9,11-12,16-17
+  s_e78efc6f53edd9::t_1fceadba1f2f4d 1-2,6,10,13-15,18-52,54-57,59-67
+  s_e78efc6f53edd9::t_2f60bc362c1d45 58
+  s_e78efc6f53edd9::t_1ac3c6588efae7 53
+TOKENIZER.md
+  s_e78efc6f53edd9::t_70ef8aa792abbb 5,7-8,10,13-15,19,21,24-27,30-35,37,44-50,52,54,66-67,69,71-73,75,77-80,82,84,86-96,98,101-106,108-128,130,134,139,142-143
+  s_e78efc6f53edd9::t_59e63d17d9868e 100
+  s_e78efc6f53edd9::t_2caacaf4feb25c 65
+src/test/tokenizer.test.ts
+  s_e78efc6f53edd9::t_7f20dce67191da 257-258,263-264
+  s_e78efc6f53edd9::t_2dc22d957ae95d 269-270
+  s_e78efc6f53edd9::t_610c4560ebb3df 384
+  s_e78efc6f53edd9::t_91aacd1082ba64 380-383,385-475
+  s_e78efc6f53edd9::t_2663791096c208 2
+  s_e78efc6f53edd9::t_b9022688aa9335 100-167
+  s_e78efc6f53edd9::t_09dee322ad9e8d 251-252
+  s_e78efc6f53edd9::t_351ef7047d132f 243,245-246,249,255,261,267,273,275-276
+src/test/runTest.ts
+  s_e78efc6f53edd9::t_76b49482aa5955 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "69e61b3513a86aa310e11553a7ef7825fd7a8f21",
+  "prompts": {},
+  "sessions": {
+    "s_e78efc6f53edd9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0db92e82fffetCAvC8VRJHpMV3",
+        "model": "qwen36"
+      },
+      "human_author": "Carsten Elton Sørensen <cso@rift.dk>"
+    }
+  }
+}
