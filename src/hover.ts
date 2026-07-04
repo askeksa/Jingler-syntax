@@ -14,7 +14,9 @@ import {
 } from "./ast";
 import {
 	symbolAt,
-	findEnclosingMember
+	findEnclosingMember,
+	findSymbolInIncludes,
+	LookupResult
 } from "./definitions";
 
 /* ------------------------------------------------------------------ */
@@ -238,6 +240,37 @@ function buildBuiltInHover(name: string): string | undefined {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Hover content builders                                             */
+/* ------------------------------------------------------------------ */
+
+function buildHoverFromTarget(target: HoverTarget): vscode.Hover | null {
+	let content: string;
+	if (target.member && !target.patternItem && !target.statement) {
+		content = buildMemberHover(target.member);
+	} else if (target.parameter) {
+		content = buildParameterHover(target.parameter);
+	} else if (target.patternItem && target.statement) {
+		content = buildVariableHover(target.name, target.statement);
+	} else if (target.patternItem && target.member) {
+		const typeStr = formatType(target.patternItem.type);
+		content = `**parameter** \`${target.name}\`${typeStr ? ":" + typeStr : ""}`;
+	} else {
+		return null;
+	}
+	return new vscode.Hover(new vscode.MarkdownString(content));
+}
+
+function buildHoverFromLookupResult(result: LookupResult): vscode.Hover | null {
+	if (result.member) {
+		return new vscode.Hover(new vscode.MarkdownString(buildMemberHover(result.member)));
+	}
+	if (result.parameter) {
+		return new vscode.Hover(new vscode.MarkdownString(buildParameterHover(result.parameter)));
+	}
+	return null;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Provider                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -256,22 +289,19 @@ export let hoverProvider: vscode.HoverProvider = {
 		// Look up in document
 		const doc = parseZingDocument(document.getText(), document.uri);
 		const target = findAstNode(doc, symbol, position.line);
-		if (!target) return null;
-
-		let content: string;
-		if (target.member && !target.patternItem && !target.statement) {
-			content = buildMemberHover(target.member);
-		} else if (target.parameter) {
-			content = buildParameterHover(target.parameter);
-		} else if (target.patternItem && target.statement) {
-			content = buildVariableHover(target.name, target.statement);
-		} else if (target.patternItem && target.member) {
-			const typeStr = formatType(target.patternItem.type);
-			content = `**parameter** \`${target.name}\`${typeStr ? ":" + typeStr : ""}`;
-		} else {
-			return null;
+		if (target) {
+			return buildHoverFromTarget(target);
 		}
 
-		return new vscode.Hover(new vscode.MarkdownString(content));
+		// Not found in current doc — check includes
+		if (doc.ast.includes.length > 0) {
+			const incPaths = doc.ast.includes.map(i => i.path);
+			const incResult = await findSymbolInIncludes(incPaths, document.uri, symbol);
+			if (incResult) {
+				return buildHoverFromLookupResult(incResult);
+			}
+		}
+
+		return null;
 	}
 };

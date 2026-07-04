@@ -573,4 +573,51 @@ module main -> (out)
 		assert.ok(content.includes("for 1024"));
 		assert.ok(content.includes("buffer"));
 	});
+
+	// --- Hover on symbols from included files ---
+
+	async function hoverOnFile(filePath: string, cursorLine: number, cursorChar: number): Promise<string | null> {
+		const uri = vscode.Uri.file(filePath);
+		const doc = await vscode.workspace.openTextDocument(uri);
+		const tokenSource = new vscode.CancellationTokenSource();
+		const hover = await hoverProvider.provideHover(doc, new vscode.Position(cursorLine, cursorChar), tokenSource.token);
+		tokenSource.dispose();
+		if (!hover || hover.contents.length === 0) return null;
+		const first = hover.contents[0];
+		if (typeof first === "string") return first;
+		if ("value" in first) return first.value;
+		return String(first);
+	}
+
+	test("hover on member from included file", async () => {
+		const content = await hoverOnFile(
+			`${__dirname}/../../test-workspace/instruments.zing`,
+			18,  // line with `out = lfo(noteNum)`
+			8    // cursor on "lfo"
+		);
+		assert.ok(content != null, `expected hover for 'lfo' from core.zing`);
+		assert.ok(content.includes("lfo"), `hover should mention 'lfo': ${content}`);
+		assert.ok(content.includes("module"), `hover should show it's a module: ${content}`);
+	});
+
+	test("hover on local variable in included-file document", async () => {
+		const content = await hoverOnFile(
+			`${__dirname}/../../test-workspace/instruments.zing`,
+			5,   // line with `  out = lfo(freq) * amp`
+			14   // cursor on "freq" — local variable assigned on line 7
+		);
+		assert.ok(content != null, `expected hover for 'freq'`);
+		assert.ok(content.includes("variable"), `hover should show it's a variable: ${content}`);
+	});
+
+	test("hover on built-in in included-file document", async () => {
+		const content = await hoverOnFile(
+			`${__dirname}/../../test-workspace/core.zing`,
+			22,  // line with `  s = sin(angle)`
+			6    // cursor on "sin"
+		);
+		assert.ok(content != null, `expected hover for 'sin'`);
+		assert.ok(content.includes("function"), `hover should show it's a built-in function: ${content}`);
+		assert.ok(content.includes("sin"), `hover should mention 'sin': ${content}`);
+	});
 });

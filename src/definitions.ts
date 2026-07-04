@@ -7,7 +7,7 @@ import {
 	SymbolDefinition,
 	ZingDocument
 } from "./document_symbols";
-import { Member } from "./ast";
+import { Member, Parameter } from "./ast";
 
 /* ------------------------------------------------------------------ */
 /*  Shared symbol lookup (used by both definitions and hover)          */
@@ -122,6 +122,60 @@ async function findSymbolInIncludesRecursive(
 			if (visited.has(includeUri.toString())) continue;
 			visited.add(includeUri.toString());
 			const nestedFound = await findSymbolInIncludesRecursive(incDoc.includes, includeUri, symbol, cursorLine, visited);
+			if (nestedFound != undefined)
+				return nestedFound;
+		} catch {
+			// Ignore errors reading the file
+		}
+	}
+	return undefined;
+}
+
+export interface LookupResult {
+	member?: Member;
+	parameter?: Parameter;
+}
+
+export async function findSymbolInIncludes(
+	includes: string[],
+	baseUri: vscode.Uri,
+	symbol: string
+): Promise<LookupResult | undefined> {
+	const visited = new Set<string>();
+	return findMemberOrParamInIncludesRecursive(includes, baseUri, symbol, visited);
+}
+
+async function findMemberOrParamInIncludesRecursive(
+	includePaths: string[],
+	baseUri: vscode.Uri,
+	symbol: string,
+	visited: Set<string>
+): Promise<LookupResult | undefined> {
+	for (const includePath of includePaths) {
+		const includeUri = vscode.Uri.joinPath(baseUri, "..", includePath);
+		if (visited.has(includeUri.toString())) continue;
+		visited.add(includeUri.toString());
+		try {
+			const bytes = await vscode.workspace.fs.readFile(includeUri);
+			const text = new TextDecoder().decode(bytes);
+			const incDoc = parseZingDocument(text, includeUri);
+
+			// Check members
+			for (const member of incDoc.ast.members) {
+				if (member.name === symbol) {
+					return { member };
+				}
+			}
+
+			// Check parameters
+			for (const param of incDoc.ast.parameters) {
+				if (param.name === symbol) {
+					return { parameter: param };
+				}
+			}
+
+			// Recurse into nested includes
+			const nestedFound = await findMemberOrParamInIncludesRecursive(incDoc.includes, includeUri, symbol, visited);
 			if (nestedFound != undefined)
 				return nestedFound;
 		} catch {
