@@ -344,7 +344,7 @@ async function diagnosticsFromMember(
 				if (isOutOfScope) {
 					diagnostics.push(errorDiagnostic(
 						refRange(ref),
-						`${ref.name}: iteration variable can only be used inside its repetition`
+						`'${ref.name}': An iteration variable can only be used inside its repetition.`
 					));
 				}
 				continue;
@@ -358,7 +358,7 @@ async function diagnosticsFromMember(
 					? `Instrument or global module not found: '${ref.name}'.`
 					: ref.isCall
 						? `Function or module not found: '${ref.name}'.`
-						: `${ref.name}: unresolved identifier`;
+						: `Variable not found: '${ref.name}'.`;
 				diagnostics.push(errorDiagnostic(refRange(ref), msg));
 				continue;
 			}
@@ -368,7 +368,7 @@ async function diagnosticsFromMember(
 			if (defLine != undefined && ref.position.line < defLine && !allowedFwdRefs.has(ref.name)) {
 				diagnostics.push(errorDiagnostic(
 					refRange(ref),
-					`${ref.name}: forward reference`
+					`'${ref.name}': Reference to a later variable is only allowed in a cell or delay.`
 				));
 			}
 		}
@@ -382,7 +382,7 @@ async function diagnosticsFromMember(
 				const ref: IdentRef = { name: oos.name, position: { line: oos.line, character: oos.character } };
 				diagnostics.push(errorDiagnostic(
 					refRange(ref),
-					`${oos.name}: iteration variable can only be used inside its repetition`
+					`'${oos.name}': An iteration variable can only be used inside its repetition.`
 				));
 			}
 		}
@@ -424,7 +424,7 @@ async function diagnosticsFromIncludes(ast: Program, uri: vscode.Uri): Promise<v
 				new vscode.Position(pos.line, pos.character),
 				new vscode.Position(pos.line, pos.character + inc.path.length + 2)
 			);
-			diagnostics.push(errorDiagnostic(range, `${inc.path}: file not found`));
+			diagnostics.push(errorDiagnostic(range, `Could not read file '${inc.path}'.`));
 		}
 	}
 	return diagnostics;
@@ -460,11 +460,9 @@ async function diagnosticsFromArgCount(ast: Program, uri: vscode.Uri): Promise<v
 						expectedArgs = memberInputs.get(expr.name)!;
 					}
 					if (expectedArgs != null && expr.arguments.length !== expectedArgs) {
-						const expected = expectedArgs === 1 ? "argument" : "arguments";
-						const given = expr.arguments.length === 1 ? "argument" : "arguments";
 						diagnostics.push(errorDiagnostic(
 							refRange({ name: expr.name, position: expr.position }),
-							`${expectedArgs} ${expected} expected, ${expr.arguments.length} ${given}`
+							`${expectedArgs} arguments expected, ${expr.arguments.length} given.`
 						));
 					}
 				}

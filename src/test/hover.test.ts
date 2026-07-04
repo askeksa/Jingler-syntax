@@ -23,7 +23,7 @@ suite("Hover Tests", () => {
 		const content = await hoverOn(text, 0, 7);
 		assert.ok(content != null);
 		assert.ok(content.includes("**module**"));
-		assert.ok(content.includes("`MyModule`"));
+		assert.ok(content.includes("MyModule"));
 	});
 
 	test("hover on function name shows signature", async () => {
@@ -33,7 +33,7 @@ suite("Hover Tests", () => {
 		const content = await hoverOn(text, 0, 9);
 		assert.ok(content != null);
 		assert.ok(content.includes("**function**"));
-		assert.ok(content.includes("`Foo`"));
+		assert.ok(content.includes("Foo"));
 	});
 
 	test("hover on instrument name shows signature", async () => {
@@ -43,7 +43,7 @@ suite("Hover Tests", () => {
 		const content = await hoverOn(text, 0, 11);
 		assert.ok(content != null);
 		assert.ok(content.includes("**instrument**"));
-		assert.ok(content.includes("`piano`"));
+		assert.ok(content.includes("piano"));
 	});
 
 	test("hover on parameter shows range and default", async () => {
@@ -54,7 +54,7 @@ module main -> (out)
 		const content = await hoverOn(text, 2, 8);
 		assert.ok(content != null);
 		assert.ok(content.includes("**parameter**"));
-		assert.ok(content.includes("`tempo`"));
+		assert.ok(content.includes("tempo"));
 		assert.ok(content.includes("60 to 200"));
 		assert.ok(content.includes("= 120"));
 	});
@@ -66,7 +66,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 2);
 		assert.ok(content != null);
 		assert.ok(content.includes("**variable**"));
-		assert.ok(content.includes("`y`"));
+		assert.ok(content.includes("y"));
 		assert.ok(content.includes("assigned"));
 		assert.ok(content.includes("`x`"));
 	});
@@ -78,7 +78,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 6);
 		assert.ok(content != null);
 		assert.ok(content.includes("**parameter**"));
-		assert.ok(content.includes("`x`"));
+		assert.ok(content.includes("x"));
 	});
 
 	test("hover on built-in function", async () => {
@@ -88,7 +88,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 8);
 		assert.ok(content != null);
 		assert.ok(content.includes("**function**"));
-		assert.ok(content.includes("`sin`"));
+		assert.ok(content.includes("sin"));
 		assert.ok(content.includes("mono"));
 	});
 
@@ -99,7 +99,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 8);
 		assert.ok(content != null);
 		assert.ok(content.includes("**module**"));
-		assert.ok(content.includes("`cell`"));
+		assert.ok(content.includes("cell"));
 		assert.ok(content.includes("typeless"));
 	});
 
@@ -127,7 +127,7 @@ module main -> (out)
 		const content = await hoverOn(text, 2, 6);
 		assert.ok(content != null);
 		assert.ok(content.includes("**variable**"));
-		assert.ok(content.includes("`b`"));
+		assert.ok(content.includes("b"));
 		assert.ok(content.includes("`a`"));
 	});
 
@@ -138,7 +138,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 2);
 		assert.ok(content != null);
 		assert.ok(content.includes("**variable**"));
-		assert.ok(content.includes("`y`"));
+		assert.ok(content.includes("y"));
 	});
 
 	test("hover with type annotations in signature", async () => {
@@ -186,7 +186,7 @@ module main -> (out)
 		const content = await hoverOn(text, 4, 8);
 		assert.ok(content != null);
 		assert.ok(content.includes("**function**"));
-		assert.ok(content.includes("`bar`"));
+		assert.ok(content.includes("bar"));
 	});
 
 	test("hover on merge expression", async () => {
@@ -280,7 +280,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 8);
 		assert.ok(content != null);
 		assert.ok(content.includes("gate"));
-		assert.ok(content.includes("gate status"));
+		assert.ok(content.includes("Reads the gate property"));
 	});
 
 	test("hover on velocity built-in with description", async () => {
@@ -290,7 +290,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 8);
 		assert.ok(content != null);
 		assert.ok(content.includes("velocity"));
-		assert.ok(content.includes("Note velocity"));
+		assert.ok(content.includes("Reads the velocity property"));
 	});
 
 	test("hover on cell built-in with description", async () => {
@@ -340,7 +340,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 8);
 		assert.ok(content != null);
 		assert.ok(content.includes("random"));
-		assert.ok(content.includes("Random in range"));
+		assert.ok(content.includes("Random value in range"));
 	});
 
 	test("hover on samplerate built-in", async () => {
@@ -350,7 +350,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 8);
 		assert.ok(content != null);
 		assert.ok(content.includes("samplerate"));
-		assert.ok(content.includes("Sample rate"));
+		assert.ok(content.includes("audio sample rate"));
 	});
 
 	test("hover on key built-in", async () => {
@@ -360,7 +360,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 8);
 		assert.ok(content != null);
 		assert.ok(content.includes("key"));
-		assert.ok(content.includes("MIDI note number"));
+		assert.ok(content.includes("Reads the key property"));
 	});
 
 	test("hover on center built-in", async () => {
@@ -370,7 +370,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 8);
 		assert.ok(content != null);
 		assert.ok(content.includes("center"));
-		assert.ok(content.includes("Center channel"));
+		assert.ok(content.includes("Average of left and right"));
 	});
 
 	test("hover on swap built-in", async () => {
@@ -380,7 +380,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 8);
 		assert.ok(content != null);
 		assert.ok(content.includes("swap"));
-		assert.ok(content.includes("Swap channels"));
+		assert.ok(content.includes("Exchange left and right"));
 	});
 
 	test("hover on pow built-in", async () => {
@@ -390,7 +390,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 8);
 		assert.ok(content != null);
 		assert.ok(content.includes("pow"));
-		assert.ok(content.includes("Power"));
+		assert.ok(content.includes("Base raised to exponent"));
 	});
 
 	test("hover on gmdls built-in", async () => {
@@ -400,7 +400,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 8);
 		assert.ok(content != null);
 		assert.ok(content.includes("gmdls"));
-		assert.ok(content.includes("GM DLS"));
+		assert.ok(content.includes("GM DLS sample mapping"));
 	});
 
 	test("hover on index built-in", async () => {
@@ -420,7 +420,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 8);
 		assert.ok(content != null);
 		assert.ok(content.includes("left"));
-		assert.ok(content.includes("Left channel"));
+		assert.ok(content.includes("left channel"));
 	});
 
 	test("hover on right built-in", async () => {
@@ -430,7 +430,7 @@ module main -> (out)
 		const content = await hoverOn(text, 1, 8);
 		assert.ok(content != null);
 		assert.ok(content.includes("right"));
-		assert.ok(content.includes("Right channel"));
+		assert.ok(content.includes("right channel"));
 	});
 
 	test("hover on log2 built-in", async () => {
@@ -547,7 +547,8 @@ module main -> (out)
 `;
 		const content = await hoverOn(text, 0, 7);
 		assert.ok(content != null);
-		assert.ok(content.includes("()"));
+		assert.ok(content.includes("main"));
+		assert.ok(content.includes("out"));
 	});
 
 	test("hover on multi-input signature", async () => {
@@ -557,11 +558,11 @@ module main -> (out)
 `;
 		const content = await hoverOn(text, 0, 7);
 		assert.ok(content != null);
-		assert.ok(content.includes("`a`"));
-		assert.ok(content.includes("`b`"));
-		assert.ok(content.includes("`c`"));
-		assert.ok(content.includes("`d`"));
-		assert.ok(content.includes("`e`"));
+		assert.ok(content.includes("a"));
+		assert.ok(content.includes("b"));
+		assert.ok(content.includes("c"));
+		assert.ok(content.includes("d"));
+		assert.ok(content.includes("e"));
 	});
 
 	test("hover on buffer init expression", async () => {

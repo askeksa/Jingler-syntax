@@ -2,7 +2,7 @@
 
 ## What this is
 
-A VS Code extension providing syntax highlighting, document symbols, and Go-to-Definition for the **Zing** language (`.zing` files) used in Jingler.
+A VS Code extension providing syntax highlighting, document symbols, go-to-definition, hover signatures, semantic highlighting, and red-squiggly diagnostics for the **Zing** language (`.zing` files) used in Jingler.
 
 ## Quick start
 
@@ -17,35 +17,17 @@ just package       # build .vsix
 
 No CI workflows.
 
-## Structure
-
-| Path | Purpose |
-|---|---|
-| `src/extension.ts` | Entry point — registers symbol provider, definition provider, and block-comment override |
-| `src/document_symbols.ts` | Tokenizer + parser for `module`/`function`/`instrument` declarations and `include` directives |
-| `src/definitions.ts` | Go-to-Definition provider; resolves symbols through `include` chains by reading files from disk |
-| `src/constants.ts` | Language identifier (`zing`) and file extension |
-| `src/test/` | Mocha tests — uses `@vscode/test-electron` to run inside VS Code extension host |
-| `syntaxes/zing.tmLanguage.json` | TextMate grammar — syntax highlighting rules |
-| `language-configuration.json` | Language config (brackets, comments, etc.) |
-| `out/` | Compiled JavaScript (gitignored, produced by `tsc`) |
-
 ## Reference documents
 
+- **`BRAINDUMP.md`** — Essential project information: architecture, key interfaces, design decisions, diagnostic pipeline, built-ins, semantic tokens, testing, remaining gaps. **Read first.**
 - **`ZING.md`** — Zing language reference: lexical structure, types, grammar, expressions, built-ins, execution model. Read when working on tokenizer, parser, grammar, or anything language-specific.
-- **`TOKENIZER.md`** — Tokenizer design: `TokenKind` variants, `Token` interface, scan loop, comment/sharp disambiguation, greedy operator matching, MIDI mapping tokenization. Read when modifying the tokenizer or `document_symbols.ts`.
-
-## Key details
-
-- **Activation**: `onLanguage:zing` — extension only loads when a `.zing` file is opened.
-- **Build**: `tsc -p ./` outputs to `out/`. The `main` field in package.json points to `./out/extension.js`.
-- **Publishing**: `just publish <ovsx_token>` publishes to both VS Code Marketplace and Open VSX Registry. Requires `vsce` and `ovsx` installed globally (`just init` does this).
-- **Block comment override**: The extension maps `editor.action.blockComment` to `editor.action.commentLine` because Zing has no block comment syntax.
+- **`TOKENIZER.md`** — Tokenizer design: `TokenKind` variants, `Token` interface, scan loop, comment/sharp disambiguation, greedy operator matching, MIDI mapping tokenization. Read when modifying the tokenizer.
+- **`ERROR_HANDLING.md`** — Remaining gaps between real compiler and extension diagnostics. Read when working on error handling.
 
 ## TypeScript guidelines
 
 - **Strict mode**: `tsc` runs with `"strict": true` — all code must satisfy strict null checks, no implicit `any`, and definite assignment checks.
-- **Target / module**: Compiles to `commonjs` targeting `es2020`. Do not use ES2021+ features or ESM syntax (`import/export` at the top level is fine for TypeScript, but the output is CommonJS).
+- **Target / module**: Compiles to `commonjs` targeting `es2020`. Do not use ES2021+ features or ESM syntax.
 - **Root dir**: `"rootDir": "src"` — all source files must live under `src/`. The compiler will error if files are placed elsewhere.
 - **Output**: Compiled JS lands in `out/` (gitignored). Never edit files in `out/` directly; always modify `src/` and recompile.
 - **Imports**: Use relative paths without `.js` or `.ts` extensions (e.g. `"./document_symbols"`). The `vscode` package is imported as `import * as vscode from 'vscode'`.
@@ -55,4 +37,56 @@ No CI workflows.
 - **Provider exports**: Provider objects are exported as named `let` bindings (e.g. `export let documentSymbolProvider`). Follow this pattern for new providers.
 - **Constants**: Language-identifying values live in `src/constants.ts` and should be imported rather than hardcoded.
 - **Formatting**: All files use tabs (size 4) for indentation.
-- **Verification**: After changes, run `npm run compile` then `npm run lint` then `npm test` to confirm the code builds, passes lint, and tests pass. Tests run inside the VS Code extension host via `@vscode/test-electron`.
+- **Verification**: After changes, run `npm run compile` then `npm run lint` then `npm test` to confirm the code builds, passes lint, and tests pass.
+
+## Working on diagnostics
+
+- Diagnostic pipeline order: parseErrors → duplicates → context → argCount → callContext → unresolved → bytecodeEmitter → includes
+- All run in parallel via `Promise.all`, then concatenated in order
+- `makeDiagnostic(range, message, severity, relatedInformation?)` centralizes diagnostic creation
+- `checkDuplicate` helper eliminates repetitive get/insert/test pattern; creates `relatedInformation` when document provided
+- Generic `walkIncludes<T>` utility for reusable include traversal
+- Include resolution: relative to each file's parent directory, recursive with circular-include guard
+- See `BRAINDUMP.md` for full diagnostic pipeline details, helper functions, and error categories
+
+## Working on hover
+
+- Resolution order: built-ins → current document AST → includes
+- Inline markdown with bold (no fenced code blocks, no backticks on names)
+- Unicode `→` for return arrows
+- Built-in hover: `**kind** signature` + `\n\n` + description (paragraph break)
+- No space before/after parens in any hover popup
+- AST flattens method calls: `result.process(1)` → `Call(name: "process", args: [Variable("result"), NumberLiteral("1")])`
+- See `BRAINDUMP.md` for `BUILT_INS` table, hover target resolution, and markdown builders
+
+## Working on the parser
+
+- Lenient: records `parseErrors`, recovers via `skipToNextMemberStart()`
+- Context defaults: `module` → `Global`, `instrument` → `Note`, `function` → `Universal`
+- MIDI parsing extracted to `src/midi_parser.ts` via `MidiParserContext` interface
+- Tracks `endLine`/`endCharacter` on all positions
+- See `BRAINDUMP.md` for parser internals, `TYPE_TOKENS`, `skipBracketBlock`, `parsePostfixChain`
+
+## Working on expression walking
+
+- `walkExpression` in `expression_walk.ts` is the single source of truth for AST traversal
+- `ExpressionVisitor` interface with optional visit methods for all 14 expression kinds
+- Used by diagnostics, syntax_highlighting, and `collectFwdRefs`
+- `CELL_DELAY_NAMES = new Set(["cell", "delay", "dyndelay"])` for forward ref exception checking
+- See `BRAINDUMP.md` for full expression AST table with all 14 kinds and their fields
+
+## Remaining gaps (vs. real compiler)
+
+See `ERROR_HANDLING.md` for full details. In brief:
+1. **Type errors** (~25+ types) — largest undertaking; requires porting `type_inference.rs` logic
+2. **Buffer init validation** (4 types) — subset of type inference; could be implemented independently
+
+## Real compiler references
+
+- `../Jingler/crates/zing/src/names.rs` — name resolution, duplicate detection
+- `../Jingler/crates/zing/src/type_inference.rs` — type checking, call context validation (lines 520-631)
+- `../Jingler/crates/zing/src/code_generator.rs` — bytecode emitter errors
+- `../Jingler/crates/zing/src/compiler.rs` — include resolution, context validation
+- `../Jingler/crates/zing/src/zing.lalrpop` — grammar source
+- `../Jingler/crates/zing/src/ast.rs` — real AST definition
+- `../Jingler/crates/zing/src/builtin.rs` — built-in definitions with context info

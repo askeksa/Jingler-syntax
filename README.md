@@ -2,9 +2,10 @@
 
 ## About
 
-This extension provides syntax highlighting for the Zing language used in Jingler. It is compatible with Visual Studio Code and derived editors, such as Google Antigravity, Codium, Cursor, and more.
+This extension provides syntax highlighting and support for the Zing language used in Jingler. It is compatible with Visual Studio Code and derived editors, such as Google Antigravity, Codium, Cursor, and more.
 
-The extension also provides symbol definition information. VS Code functionality such as Go to Definition, Peek Definition etc. also work.
+The extension supports mouse hovering, underlining of errors and warnings, symbol definition information, and more. VS Code functionality such as Go to Definition, Peek Definition etc. also work.
+
 
 <img src="./images/example.png" width="400px" />
 

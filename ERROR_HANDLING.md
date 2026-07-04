@@ -7,14 +7,15 @@ Real Zing compiler vs. VS Code extension diagnostics.
 The following error categories are fully implemented and match the real compiler:
 
 - **Parse errors** — Parser emits errors for invalid syntax, invalid combinators, empty call args, etc.
-- **Forward reference semantics** — Forward refs allowed by default. Flagged only when: (a) outside `cell`/`delay`/`dyndelay` calls, (b) for-loop variables used outside their `for`-expression body. Cross-member forward refs also flagged.
+- **Forward reference semantics** — Forward refs allowed by default. Flagged only when: (a) outside `cell`/`delay`/`dyndelay` calls, (b) for-loop variables used outside their `for`-expression body. Cross-member forward refs also flagged. Messages match real compiler: `'x': Reference to a later variable is only allowed in a cell or delay.` and `'i': An iteration variable can only be used inside its repetition.`
 - **Duplicate names** — Detects duplicate members, parameters, inputs, outputs, local variables, MIDI inputs, and built-in shadowing. Diagnostics carry `relatedInformation` pointing to the original definition.
+- **Unresolved identifiers** — `Variable not found: 'x'.`, `Function or module not found: 'x'.`, `Instrument or global module not found: 'x'.` (based on MIDI arg count)
 - **Context errors** — All 5 context errors: `'main'` must be global, `'main'` can't have MIDI inputs, instruments can't be global/implicitly note, only global modules can have MIDI inputs.
 - **Call context errors** — All 13 call-site validation rules: context compatibility, MIDI prefix rules, MIDI mapping validation (channel range, named input lookup, count mismatch).
-- **Argument count errors** — Built-in calls via `BUILT_INS[name].args`, member calls via `inputs.length`. Resolves member signatures through includes.
+- **Argument count errors** — Built-in calls via `BUILT_INS[name].args`, member calls via `inputs.length`. Resolves member signatures through includes. Message: `N arguments expected, M given.`
 - **Combinator validation** — Parser validates against `{add, max, min, mul}`.
 - **Bytecode emitter errors** — Tuple indexing unsupported, built-in module in repetition body.
-- **Include resolution** — Resolves relative to each file's parent directory with circular-include guard.
+- **Include resolution** — Resolves relative to each file's parent directory with circular-include guard. Error: `Could not read file 'x.zing'.`
 - **Severity levels** — Parameterized `makeDiagnostic()` with `vscode.DiagnosticSeverity`. `syntaxDiagnostic()` and `errorDiagnostic()` wrappers. Infrastructure ready for `Warning` severity.
 
 ## What's Still Missing

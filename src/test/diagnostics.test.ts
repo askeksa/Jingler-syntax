@@ -40,7 +40,7 @@ suite("Diagnostics Tests", () => {
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("nonexistent: unresolved identifier")), `expected unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'nonexistent'")), `expected unresolved, got: ${messages.join(", ")}`);
 	});
 
 	test("resolved input variable has no diagnostic", async () => {
@@ -75,7 +75,7 @@ suite("Diagnostics Tests", () => {
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("x: forward reference")), `expected x forward reference, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("'x': Reference to a later variable")), `expected x forward reference, got: ${messages.join(", ")}`);
 	});
 
 	test("forward reference to member is flagged", async () => {
@@ -87,7 +87,7 @@ module helper (x) -> (y)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("helper: forward reference")), `expected helper forward reference, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("'helper': Reference to a later variable")), `expected helper forward reference, got: ${messages.join(", ")}`);
 	});
 
 	test("forward reference inside cell is allowed", async () => {
@@ -115,7 +115,7 @@ module helper (x) -> (y)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("i: iteration variable")), `expected i iteration variable error, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("'i': An iteration variable can only be used inside its repetition")), `expected i iteration variable error, got: ${messages.join(", ")}`);
 	});
 
 	test("for-loop variable inside cell is still scoped to for body", async () => {
@@ -125,7 +125,7 @@ module helper (x) -> (y)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("i: iteration variable")), `expected i iteration variable error, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("'i': An iteration variable can only be used inside its repetition")), `expected i iteration variable error, got: ${messages.join(", ")}`);
 	});
 
 	test("forward reference to parameter is OK", async () => {
@@ -177,8 +177,8 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("a: unresolved identifier")), `expected a unresolved, got: ${messages.join(", ")}`);
-		assert.ok(messages.some(m => m.includes("b: unresolved identifier")), `expected b unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'a'")), `expected a unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'b'")), `expected b unresolved, got: ${messages.join(", ")}`);
 	});
 
 	test("unresolved in nested expression", async () => {
@@ -187,7 +187,7 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("unknown: unresolved identifier")), `expected unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'unknown'")), `expected unresolved, got: ${messages.join(", ")}`);
 	});
 
 	test("ForExpr variable is a definition, not unresolved", async () => {
@@ -245,7 +245,7 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("file not found")), `expected file not found, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Could not read file")), `expected file not found, got: ${messages.join(", ")}`);
 	});
 
 	// --- Severity ---
@@ -268,7 +268,9 @@ module main -> (out)
 		const diags = await getDiagnostics(text);
 		assert.ok(diags.length > 0);
 		const diag = diags[0];
-		const word = diag.message.split(":")[0].trim();
+		const match = diag.message.match(/'(\w+)'/);
+		assert.ok(match, `expected identifier in message: ${diag.message}`);
+		const word = match[1];
 		assert.strictEqual(diag.range.start.line, 1);
 		assert.strictEqual(diag.range.end.character - diag.range.start.character, word.length);
 	});
@@ -279,8 +281,8 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("leftCh: unresolved identifier")), `expected leftCh unresolved, got: ${messages.join(", ")}`);
-		assert.ok(messages.some(m => m.includes("rightCh: unresolved identifier")), `expected rightCh unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'leftCh'")), `expected leftCh unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'rightCh'")), `expected rightCh unresolved, got: ${messages.join(", ")}`);
 	});
 
 	test("unresolved in conditional expression", async () => {
@@ -289,9 +291,9 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("cond: unresolved identifier")), `expected cond unresolved, got: ${messages.join(", ")}`);
-		assert.ok(messages.some(m => m.includes("thenVal: unresolved identifier")), `expected thenVal unresolved, got: ${messages.join(", ")}`);
-		assert.ok(messages.some(m => m.includes("elseVal: unresolved identifier")), `expected elseVal unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'cond'")), `expected cond unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'thenVal'")), `expected thenVal unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'elseVal'")), `expected elseVal unresolved, got: ${messages.join(", ")}`);
 	});
 
 	test("unresolved in buffer literal", async () => {
@@ -300,9 +302,9 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("x: unresolved identifier")), `expected x unresolved, got: ${messages.join(", ")}`);
-		assert.ok(messages.some(m => m.includes("y: unresolved identifier")), `expected y unresolved, got: ${messages.join(", ")}`);
-		assert.ok(messages.some(m => m.includes("z: unresolved identifier")), `expected z unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'x'")), `expected x unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'y'")), `expected y unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'z'")), `expected z unresolved, got: ${messages.join(", ")}`);
 	});
 
 	test("unresolved in buffer index", async () => {
@@ -311,8 +313,8 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("myBuf: unresolved identifier")), `expected myBuf unresolved, got: ${messages.join(", ")}`);
-		assert.ok(messages.some(m => m.includes("myIdx: unresolved identifier")), `expected myIdx unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'myBuf'")), `expected myBuf unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'myIdx'")), `expected myIdx unresolved, got: ${messages.join(", ")}`);
 	});
 
 	test("unresolved in tuple expression", async () => {
@@ -321,9 +323,9 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("a: unresolved identifier")), `expected a unresolved, got: ${messages.join(", ")}`);
-		assert.ok(messages.some(m => m.includes("b: unresolved identifier")), `expected b unresolved, got: ${messages.join(", ")}`);
-		assert.ok(messages.some(m => m.includes("c: unresolved identifier")), `expected c unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'a'")), `expected a unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'b'")), `expected b unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'c'")), `expected c unresolved, got: ${messages.join(", ")}`);
 	});
 
 	test("unresolved in unary expression", async () => {
@@ -332,7 +334,7 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("negVal: unresolved identifier")), `expected negVal unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'negVal'")), `expected negVal unresolved, got: ${messages.join(", ")}`);
 	});
 
 	test("unresolved in logical not expression", async () => {
@@ -341,7 +343,7 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("flag: unresolved identifier")), `expected flag unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'flag'")), `expected flag unresolved, got: ${messages.join(", ")}`);
 	});
 
 	test("resolved in buffer init expression", async () => {
@@ -358,7 +360,7 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("badLen: unresolved identifier")), `expected badLen unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Variable not found: 'badLen'")), `expected badLen unresolved, got: ${messages.join(", ")}`);
 	});
 
 	test("method-style call chains receiver as first arg (unknown method is unresolved)", async () => {
@@ -518,7 +520,7 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("1 argument expected, 3 arguments")), `expected arg count error, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("1 arguments expected, 3 given")), `expected arg count error, got: ${messages.join(", ")}`);
 	});
 
 	test("built-in with too few args is flagged", async () => {
@@ -527,7 +529,7 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("2 arguments expected, 1 argument")), `expected arg count error, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("2 arguments expected, 1 given")), `expected arg count error, got: ${messages.join(", ")}`);
 	});
 
 	test("member call with wrong arg count is flagged", async () => {
@@ -539,7 +541,7 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("1 argument expected, 0 arguments")), `expected arg count error, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("1 arguments expected, 0 given")), `expected arg count error, got: ${messages.join(", ")}`);
 	});
 
 	// --- Call context errors ---
@@ -894,7 +896,7 @@ instrument myInst -> (out)
   out = nonexistent
 `;
 		const diags = await getDiagnostics(text);
-		const unresolved = diags.find(d => d.message.includes("unresolved identifier"));
+		const unresolved = diags.find(d => d.message.includes("Variable not found"));
 		assert.ok(unresolved, `expected unresolved diagnostic`);
 		assert.strictEqual(unresolved.severity, vscode.DiagnosticSeverity.Error);
 	});

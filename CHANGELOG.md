@@ -1,3 +1,10 @@
+### 2.0.0
+
+* Semantic syntax coloring.
+* Underline errors and warnings, errors added to PROBLEMS tab.
+* Mouse hover popups, ctrl-hover popups.
+
+
 ### 1.1.3
 
 * Follow `include` directives when searching for definitions.
