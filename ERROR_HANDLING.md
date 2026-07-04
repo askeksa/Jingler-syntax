@@ -1,39 +1,28 @@
-# Error Handling — Discrepancy Report
+# Error Handling — Remaining Gaps
 
 Real Zing compiler vs. VS Code extension diagnostics.
 
-## 1. Forward Reference Semantics (Major)
+## What's Implemented
 
-The real compiler does **NOT** do line-aware resolution. `Names::find` (`names.rs:62-147`) collects all names into a single HashMap per member — all inputs, outputs, body assignments, and for-loop variables are inserted eagerly, regardless of order. Then `type_inference.rs:466-471` checks `lookup_variable` and reports `"Variable not found: '{name}'"` only if the name is truly absent.
+The following error categories are fully implemented and match the real compiler:
 
-However, the **bytecode emitter** (`code_generator.rs:1057-1065`) adds two additional checks on forward references:
-- `"Reference to a later variable is only allowed in a cell or delay."` — forward reference to a Node variable used outside a `cell`/`delay` call
-- `"An iteration variable can only be used inside its repetition."` — for-loop variable referenced outside its `for`-expression body
+- **Parse errors** — Parser emits errors for invalid syntax, invalid combinators, empty call args, etc.
+- **Forward reference semantics** — Forward refs allowed by default. Flagged only when: (a) outside `cell`/`delay`/`dyndelay` calls, (b) for-loop variables used outside their `for`-expression body. Cross-member forward refs also flagged.
+- **Duplicate names** — Detects duplicate members, parameters, inputs, outputs, local variables, MIDI inputs, and built-in shadowing. Diagnostics carry `relatedInformation` pointing to the original definition.
+- **Context errors** — All 5 context errors: `'main'` must be global, `'main'` can't have MIDI inputs, instruments can't be global/implicitly note, only global modules can have MIDI inputs.
+- **Call context errors** — All 13 call-site validation rules: context compatibility, MIDI prefix rules, MIDI mapping validation (channel range, named input lookup, count mismatch).
+- **Argument count errors** — Built-in calls via `BUILT_INS[name].args`, member calls via `inputs.length`. Resolves member signatures through includes.
+- **Combinator validation** — Parser validates against `{add, max, min, mul}`.
+- **Bytecode emitter errors** — Tuple indexing unsupported, built-in module in repetition body.
+- **Include resolution** — Resolves relative to each file's parent directory with circular-include guard.
+- **Severity levels** — Parameterized `makeDiagnostic()` with `vscode.DiagnosticSeverity`. `syntaxDiagnostic()` and `errorDiagnostic()` wrappers. Infrastructure ready for `Warning` severity.
 
-**Our implementation** uses line-aware resolution (`stmt.position.line < beforeLine`), which is **stricter** than the real compiler. We flag all forward references as errors, but the real compiler allows them (with the two exceptions above).
+## What's Still Missing
 
-## 2. Missing: Duplicate Definition Errors
-
-From `names.rs:152-165`:
-- `"Duplicate definition of '{name}'"` — duplicate member, variable, or parameter
-- `"Duplicate MIDI input '{name}'"` — duplicate MIDI input name
-- `"The {kind} '{name}' has the same name as a built-in {kind}"` — shadowing built-ins
-
-We have **none** of these.
-
-## 3. Context Errors (Fixed)
-
-From `compiler.rs:371-407`:
-- `"'main' must be a global module"` — wrong context
-- `"'main' can't have MIDI inputs"` — invalid config
-- `"Instruments can't be global"` / `"Instruments have implicit note context"` — wrong context
-- `"Only global modules can have MIDI inputs"` — MIDI on non-global
-
-**Fixed**: All 5 context errors now detected. Parser also defaults `module` to `Global` context (matching real compiler), `function` to `Universal`. "No 'main' module" intentionally skipped (single-file extension can't know full program).
-
-## 4. Missing: Type Errors (~30+ error types)
+### 1. Type Errors (~25+ error types)
 
 From `type_inference.rs`:
+
 - `"Inputs and outputs must specify explicit width"`
 - `"Module outputs can't be static"` / `"Function inputs or outputs can't be marked static or dynamic"` / `"Instrument outputs can't be static"`
 - `"Static instrument inputs can't come after dynamic inputs"`
@@ -54,94 +43,35 @@ From `type_inference.rs`:
 - `"Conditionals on buffers must have mono conditions"`
 - `"Values inside a tuple can't be auto-expanded from mono"`
 
-We have **none** of these.
+This is the largest remaining gap. Requires porting full type inference logic from `type_inference.rs`.
 
-## 5. Missing: Call Context Errors
-
-From `type_inference.rs:520-631`:
-- `"Modules can't be called from functions"`
-- `"Global modules can only be called from other global modules"`
-- `"Note modules can only be called from instruments and other note modules"`
-- `"Functions can't be prefixed with MIDI inputs"`
-- `"Global functions can only be called from global modules and other global functions"`
-- `"Note functions can only be called from instruments, note modules and other note functions"`
-- `"Instruments must be prefixed with a MIDI input and '::'"`
-- `"Instruments only take a single MIDI input"`
-- `"Instruments can only be called from global modules"`
-- `"MIDI channel must be between 1 and 16"`
-- `"Incorrect number of MIDI inputs: {x} given, {y} expected"`
-- `"MIDI input not found: '{name}'"` — named MIDI input reference
-
-We check for **unresolved call targets** but not for any of the context/validation errors.
-
-## 6. Argument Count Errors (Fixed)
-
-From `type_inference.rs:772-805`:
-- `"{x} arguments expected, {y} given"` — wrong number of args for a call
-
-**Fixed**: Checks both built-in calls (via `BUILT_INS[name].args`) and member calls (via member's `inputs.length`). Also added `args` count to all built-in entries and added missing `length` built-in.
-
-## 7. Missing: Buffer Init Validation
+### 2. Buffer Init Validation (4 error types)
 
 From `type_inference.rs:696-750`:
+
 - `"Buffer initialization module can't be global"`
 - `"Buffer initialization module can only have static inputs"`
 - `"Buffer initialization must be a module call"`
 - `"Can't initialize a {x} buffer with a {y} number"`
 
-We don't check any of these.
+### Summary Table
 
-## 8. Combinator Validation (Fixed)
-
-From `type_inference.rs:680-683`:
-- `"Permitted repetition combinators are '{x}', '{y}', ..."` — invalid combinator name in for-expression
-
-**Fixed**: Parser now validates combinator against `VALID_COMBINATORS = {add, max, min, mul}` and emits a parse error for invalid names.
-
-## 9. Missing: Bytecode Emitter Errors
-
-From `code_generator.rs` — these are only caught at code generation time, after parsing and type inference:
-- `"Not supported yet: tuple indexing."` — `TupleIndex` expression used (`code_generator.rs:1227-1228`)
-- `"Not supported yet: Built-in module in repetition body."` — `cell`/`delay`/`dyndelay` called inside a `for`-expression body (`code_generator.rs:1098-1100`)
-- `"Reference to a later variable is only allowed in a cell or delay."` — forward reference to a Node variable used outside a `cell`/`delay` call (`code_generator.rs:1057-1059`)
-- `"An iteration variable can only be used inside its repetition."` — for-loop variable referenced outside its `for`-expression body (`code_generator.rs:1062-1065`)
-
-We have **none** of these. The forward-reference checks are particularly important because they refine the forward reference semantics described in section 1.
-
-## 10. Severity Levels
-
-The real compiler has 5 severity levels: `SyntaxError`, `Error`, `InternalError`, `Warning`, `Context`. We only use `vscode.DiagnosticSeverity.Error` for everything. The real compiler uses `Warning` for non-fatal issues and `Context` for "previously defined here" cross-references.
-
-## 11. Include Resolution
-
-The real compiler resolves includes relative to the **including file's parent directory** (`compiler.rs:300-305`). We resolve relative to the **main file's directory** (`vscode.Uri.joinPath(doc.uri, "..", includePath)`). This is wrong for nested include chains.
-
-## Summary Table
-
-| Error Category | Real Compiler | Our Extension | Gap |
+| Error Category | Real Compiler | Our Extension | Status |
 |---|---|---|---|
-| Parse errors | 4 types | 1 generic | Minor |
-| Forward refs | Allowed (with 2 CG exceptions) | Allowed + 2 exceptions flagged | **Fixed** |
-| Duplicate names | 3 types | All 5 types | **Fixed** |
-| Context errors | 5 types | All 5 detected | **Fixed** |
-| Type errors | 25+ types | None | Missing |
-| Call context | 10+ types | All 13 rules | **Fixed** |
-| Arg count | 1 type | Built-ins + members | **Fixed** |
-| Buffer init | 4 types | None | Missing |
-| Combinators | 1 type | Validated | **Fixed** |
-| Bytecode emitter | 4 types | None | Missing |
-| Include paths | Relative to parent | Relative to main | **Bug** |
-| Severity levels | 5 levels | 1 level (Error) | Missing |
+| Parse errors | 4 types | 1 generic | Minor gap |
+| Forward refs | Allowed + 2 CG exceptions | Allowed + 2 exceptions flagged | Done |
+| Duplicate names | 3 types | All 5 types + relatedInfo | Done |
+| Context errors | 5 types | All 5 detected | Done |
+| Type errors | 25+ types | None | **Missing** |
+| Call context | 10+ types | All 13 rules | Done |
+| Arg count | 1 type | Built-ins + members | Done |
+| Buffer init | 4 types | None | **Missing** |
+| Combinators | 1 type | Validated | Done |
+| Bytecode emitter | 4 types | All 4 detected | Done |
+| Include paths | Relative to parent | Relative to parent | Done |
+| Severity levels | 5 levels | Parameterized factory | Done |
 
 ## Recommended Fixes (Priority Order)
 
-1. ~~**Refine forward ref checking** — DONE (2026-07-04). Forward refs now allowed by default. Flagged only when: (a) outside `cell`/`delay`/`dyndelay` calls, (b) for-loop variables used outside their `for`-expression body. Cross-member forward refs also flagged.~~
-2. ~~**Fix include path resolution** — DONE (2026-07-04). Includes now resolve relative to each file's parent directory. Recursive include chains are handled correctly with circular-include guard.~~
-3. ~~**Add duplicate name detection** — DONE (2026-07-04). Detects: duplicate members, parameters, inputs, outputs, local variables, MIDI inputs, and built-in shadowing for members/parameters. Output names assigned in body are excluded (expected pattern).~~
-4. ~~**Add combinator validation** — DONE (2026-07-04). Parser validates combinator against `{add, max, min, mul}`, emits parse error for invalid names.~~
-5. ~~**Add context errors** — DONE (2026-07-04). All 5 context errors detected. Parser defaults `module` to `Global`, `function` to `Universal`. "No 'main' module" skipped (single-file limitation).~~
-6. ~~**Add argument count errors** — DONE (2026-07-04). Checks built-in calls via `BUILT_INS[name].args` and member calls via `inputs.length`. Added `args` to all built-ins, added missing `length` built-in.~~
-7. ~~**Add call context errors** — DONE (2026-07-04). All 13 call-site validation rules implemented: context compatibility (module from function, global/note callee from wrong context, instrument from non-global), MIDI prefix rules (on function, on non-global module, instrument without/too many), and MIDI mapping validation (channel range, named input lookup, MIDI count mismatch). Built-in contexts added to `BUILT_INS` table.~~
-8. **Add bytecode emitter errors** — tuple indexing unsupported, built-in module in repetition body
-9. **Add severity levels** — map `SyntaxError`/`Error`/`Warning` to VS Code severities
-10. **Full type inference** — largest undertaking; requires porting `type_inference.rs` logic
+1. **Full type inference** — largest undertaking; requires porting `type_inference.rs` logic
+2. **Buffer init validation** — subset of type inference; could be implemented independently

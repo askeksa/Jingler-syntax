@@ -29,8 +29,32 @@ function refRange(ref: IdentRef): vscode.Range {
 	);
 }
 
-function errorDiagnostic(range: vscode.Range, message: string): vscode.Diagnostic {
-	return new vscode.Diagnostic(range, message, vscode.DiagnosticSeverity.Error);
+function makeDiagnostic(
+	range: vscode.Range,
+	message: string,
+	severity: vscode.DiagnosticSeverity = vscode.DiagnosticSeverity.Error,
+	relatedInformation?: vscode.DiagnosticRelatedInformation[]
+): vscode.Diagnostic {
+	const diag = new vscode.Diagnostic(range, message, severity);
+	if (relatedInformation) {
+		diag.relatedInformation = relatedInformation;
+	}
+	return diag;
+}
+
+function errorDiagnostic(
+	range: vscode.Range,
+	message: string,
+	relatedInformation?: vscode.DiagnosticRelatedInformation[]
+): vscode.Diagnostic {
+	return makeDiagnostic(range, message, vscode.DiagnosticSeverity.Error, relatedInformation);
+}
+
+function syntaxDiagnostic(
+	range: vscode.Range,
+	message: string
+): vscode.Diagnostic {
+	return makeDiagnostic(range, message, vscode.DiagnosticSeverity.Error);
 }
 
 /* ------------------------------------------------------------------ */
@@ -287,7 +311,7 @@ function diagnosticsFromParseErrors(ast: Program): vscode.Diagnostic[] {
 			new vscode.Position(err.position.line, err.position.character),
 			new vscode.Position(err.position.line, err.position.character + 10)
 		);
-		return errorDiagnostic(range, err.message);
+		return syntaxDiagnostic(range, err.message);
 	});
 }
 
@@ -662,11 +686,17 @@ function checkDuplicate(
 	seen: Map<string, IdentRef>,
 	name: string,
 	position: { line: number; character: number },
-	message: string
+	message: string,
+	document?: vscode.TextDocument
 ): void {
 	const existing = seen.get(name);
 	if (existing) {
-		diagnostics.push(errorDiagnostic(refRange({ name, position }), message));
+		let related: vscode.DiagnosticRelatedInformation[] | undefined;
+		if (document) {
+			const loc = new vscode.Location(document.uri, refRange(existing));
+			related = [new vscode.DiagnosticRelatedInformation(loc, `Previously defined here`)];
+		}
+		diagnostics.push(errorDiagnostic(refRange({ name, position }), message, related));
 	} else {
 		seen.set(name, { name, position });
 	}
@@ -680,14 +710,14 @@ function memberKindLabel(kind: MemberKind): string {
 	}
 }
 
-function diagnosticsFromDuplicates(ast: Program): vscode.Diagnostic[] {
+function diagnosticsFromDuplicates(ast: Program, document: vscode.TextDocument): vscode.Diagnostic[] {
 	const diagnostics: vscode.Diagnostic[] = [];
 	const memberNames = new Map<string, IdentRef>();
 	const paramNames = new Map<string, IdentRef>();
 
 	for (const param of ast.parameters) {
 		checkDuplicate(diagnostics, paramNames, param.name, param.namePosition,
-			`Duplicate definition of '${param.name}'.`);
+			`Duplicate definition of '${param.name}'.`, document);
 		if (isBuiltIn(param.name)) {
 			diagnostics.push(errorDiagnostic(
 				refRange({ name: param.name, position: param.namePosition }),
@@ -698,7 +728,7 @@ function diagnosticsFromDuplicates(ast: Program): vscode.Diagnostic[] {
 
 	for (const member of ast.members) {
 		checkDuplicate(diagnostics, memberNames, member.name, member.namePosition,
-			`Duplicate definition of '${member.name}'.`);
+			`Duplicate definition of '${member.name}'.`, document);
 		if (isBuiltIn(member.name)) {
 			const kind = memberKindLabel(member.kind);
 			diagnostics.push(errorDiagnostic(
@@ -709,13 +739,13 @@ function diagnosticsFromDuplicates(ast: Program): vscode.Diagnostic[] {
 	}
 
 	for (const member of ast.members) {
-		diagnostics.push(...diagnosticsFromMemberDuplicates(member));
+		diagnostics.push(...diagnosticsFromMemberDuplicates(member, document));
 	}
 
 	return diagnostics;
 }
 
-function diagnosticsFromMemberDuplicates(member: Member): vscode.Diagnostic[] {
+function diagnosticsFromMemberDuplicates(member: Member, document: vscode.TextDocument): vscode.Diagnostic[] {
 	const diagnostics: vscode.Diagnostic[] = [];
 	const names = new Map<string, IdentRef>();
 	const midiNames = new Map<string, IdentRef>();
@@ -724,25 +754,66 @@ function diagnosticsFromMemberDuplicates(member: Member): vscode.Diagnostic[] {
 	for (const midi of member.midiParams) {
 		if (midi.name === "_") continue;
 		checkDuplicate(diagnostics, midiNames, midi.name, midi.position,
-			`Duplicate MIDI input '${midi.name}'.`);
+			`Duplicate MIDI input '${midi.name}'.`, document);
 	}
 
 	for (const item of member.inputs) {
 		checkDuplicate(diagnostics, names, item.name, item.position,
-			`Duplicate definition of '${item.name}'.`);
+			`Duplicate definition of '${item.name}'.`, document);
 	}
 
 	for (const item of member.outputs) {
 		outputNames.add(item.name);
 		checkDuplicate(diagnostics, names, item.name, item.position,
-			`Duplicate definition of '${item.name}'.`);
+			`Duplicate definition of '${item.name}'.`, document);
 	}
 
 	for (const stmt of member.body) {
 		for (const item of stmt.pattern) {
 			if (outputNames.has(item.name)) continue;
 			checkDuplicate(diagnostics, names, item.name, item.position,
-				`Duplicate definition of '${item.name}'.`);
+				`Duplicate definition of '${item.name}'.`, document);
+		}
+	}
+
+	return diagnostics;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Bytecode emitter errors                                            */
+/*  Tuple indexing unsupported + built-in module in repetition body    */
+/* ------------------------------------------------------------------ */
+
+function diagnosticsFromBytecodeEmitter(ast: Program): vscode.Diagnostic[] {
+	const diagnostics: vscode.Diagnostic[] = [];
+
+	for (const member of ast.members) {
+		for (const stmt of member.body) {
+			walkExpression(stmt.expression, {
+				visitTupleIndex: expr => {
+					const start = expr.target.position;
+					const endChar = expr.position.character + String(expr.index).length;
+					diagnostics.push(errorDiagnostic(
+						new vscode.Range(
+							new vscode.Position(start.line, start.character),
+							new vscode.Position(expr.position.line, endChar)
+						),
+						"Not supported yet: tuple indexing."
+					));
+				},
+				visitFor: expr => {
+					walkExpression(expr.body, {
+						visitCall: call => {
+							if (call.name in BUILT_INS && BUILT_INS[call.name].memberKind === "Module") {
+								diagnostics.push(errorDiagnostic(
+									refRange({ name: call.name, position: call.position }),
+									"Not supported yet: Built-in module in repetition body."
+								));
+							}
+						}
+					});
+				},
+			});
 		}
 	}
 
@@ -756,13 +827,14 @@ function diagnosticsFromMemberDuplicates(member: Member): vscode.Diagnostic[] {
 export async function computeDiagnostics(document: vscode.TextDocument): Promise<vscode.Diagnostic[]> {
 	const doc = parseZingDocument(document.getText(), document.uri);
 
-	const [parseDiagnostics, duplicateDiagnostics, contextDiagnostics, argCountDiagnostics, callContextDiagnostics, unresolvedDiagnostics, includeDiagnostics] = await Promise.all([
+	const [parseDiagnostics, duplicateDiagnostics, contextDiagnostics, argCountDiagnostics, callContextDiagnostics, unresolvedDiagnostics, bytecodeDiagnostics, includeDiagnostics] = await Promise.all([
 		Promise.resolve(diagnosticsFromParseErrors(doc.ast)),
-		Promise.resolve(diagnosticsFromDuplicates(doc.ast)),
+		Promise.resolve(diagnosticsFromDuplicates(doc.ast, document)),
 		Promise.resolve(diagnosticsFromContext(doc.ast)),
 		diagnosticsFromArgCount(doc.ast, document.uri),
 		diagnosticsFromCallContext(doc.ast, document.uri),
 		diagnosticsFromUnresolved(doc),
+		Promise.resolve(diagnosticsFromBytecodeEmitter(doc.ast)),
 		diagnosticsFromIncludes(doc.ast, document.uri),
 	]);
 
@@ -773,6 +845,7 @@ export async function computeDiagnostics(document: vscode.TextDocument): Promise
 		...argCountDiagnostics,
 		...callContextDiagnostics,
 		...unresolvedDiagnostics,
+		...bytecodeDiagnostics,
 		...includeDiagnostics,
 	];
 }

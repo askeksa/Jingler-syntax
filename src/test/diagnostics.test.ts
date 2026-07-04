@@ -819,4 +819,159 @@ instrument myInst -> (out)
 		const messages = diagMessages(diags);
 		assert.strictEqual(diags.length, 0, `expected no errors, got: ${messages.join(", ")}`);
 	});
+
+	// --- Bytecode emitter errors ---
+
+	test("tuple indexing is flagged as unsupported", async () => {
+		const text = `module main -> (out)
+  t = (1, 2)
+  out = t.0
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Not supported yet: tuple indexing")), `expected tuple indexing error, got: ${messages.join(", ")}`);
+	});
+
+	test("cell inside for-loop body is flagged as unsupported", async () => {
+		const text = `module main -> (out)
+  out = for i to 5 add cell(0, i)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Not supported yet: Built-in module in repetition body")), `expected bytecode error, got: ${messages.join(", ")}`);
+	});
+
+	test("delay inside for-loop body is flagged as unsupported", async () => {
+		const text = `module main -> (out)
+  out = for i to 5 add delay(10, i)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Not supported yet: Built-in module in repetition body")), `expected bytecode error, got: ${messages.join(", ")}`);
+	});
+
+	test("dyndelay inside for-loop body is flagged as unsupported", async () => {
+		const text = `module main -> (out)
+  out = for i to 5 add dyndelay(10, i, 100)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Not supported yet: Built-in module in repetition body")), `expected bytecode error, got: ${messages.join(", ")}`);
+	});
+
+	test("built-in function inside for-loop body is OK", async () => {
+		const text = `module main -> (out)
+  out = for i to 5 add abs(i)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(!messages.some(m => m.includes("Built-in module in repetition body")), `expected no bytecode error, got: ${messages.join(", ")}`);
+	});
+
+	test("cell outside for-loop body is OK", async () => {
+		const text = `module main -> (out)
+  out = cell(0, out + 1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(!messages.some(m => m.includes("Built-in module in repetition body")), `expected no bytecode error, got: ${messages.join(", ")}`);
+	});
+
+	// --- Severity levels ---
+
+	test("parser errors have Error severity", async () => {
+		const text = `module -> (out)
+  out = 1
+`;
+		const diags = await getDiagnostics(text);
+		const parseDiag = diags.find(d => d.message.includes("missing name"));
+		assert.ok(parseDiag, `expected parse error diagnostic`);
+		assert.strictEqual(parseDiag.severity, vscode.DiagnosticSeverity.Error);
+	});
+
+	test("unresolved identifier has Error severity", async () => {
+		const text = `module main -> (out)
+  out = nonexistent
+`;
+		const diags = await getDiagnostics(text);
+		const unresolved = diags.find(d => d.message.includes("unresolved identifier"));
+		assert.ok(unresolved, `expected unresolved diagnostic`);
+		assert.strictEqual(unresolved.severity, vscode.DiagnosticSeverity.Error);
+	});
+
+	test("context errors have Error severity", async () => {
+		const text = `note function main (x) -> (out)
+  out = x
+`;
+		const diags = await getDiagnostics(text);
+		const ctxDiag = diags.find(d => d.message.includes("'main' must be a global module"));
+		assert.ok(ctxDiag, `expected context error diagnostic, got: ${diagMessages(diags).join(", ")}`);
+		assert.strictEqual(ctxDiag.severity, vscode.DiagnosticSeverity.Error);
+	});
+
+	test("bytecode emitter errors have Error severity", async () => {
+		const text = `module main -> (out)
+  t = (1, 2)
+  out = t.0
+`;
+		const diags = await getDiagnostics(text);
+		const bcDiag = diags.find(d => d.message.includes("tuple indexing"));
+		assert.ok(bcDiag, `expected bytecode error diagnostic`);
+		assert.strictEqual(bcDiag.severity, vscode.DiagnosticSeverity.Error);
+	});
+
+	test("tuple indexing diagnostic covers full expression range", async () => {
+		const text = `module main -> (out)
+  out = someTuple.2
+`;
+		const diags = await getDiagnostics(text);
+		const bcDiag = diags.find(d => d.message.includes("tuple indexing"));
+		assert.ok(bcDiag, `expected bytecode error diagnostic`);
+		// Range should cover "someTuple.2" (13 chars), not a fixed 20
+		assert.strictEqual(bcDiag.range.start.line, 1);
+		assert.strictEqual(bcDiag.range.start.character, 8);
+		assert.strictEqual(bcDiag.range.end.character, 19);
+	});
+
+	// --- relatedInformation on duplicates ---
+
+	test("duplicate member has relatedInformation pointing to original", async () => {
+		const text = `module foo -> (x)
+  x = 1
+
+module foo -> (y)
+  y = 2
+`;
+		const diags = await getDiagnostics(text);
+		const dupDiag = diags.find(d => d.message.includes("Duplicate definition of 'foo'"));
+		assert.ok(dupDiag, `expected duplicate diagnostic`);
+		assert.ok(dupDiag.relatedInformation, `expected relatedInformation`);
+		assert.strictEqual(dupDiag.relatedInformation!.length, 1);
+		assert.ok(dupDiag.relatedInformation![0].message.includes("Previously defined here"));
+	});
+
+	test("duplicate parameter has relatedInformation pointing to original", async () => {
+		const text = `parameter a 1 to 10
+parameter a 20 to 30
+
+module main -> (out)
+  out = 1
+`;
+		const diags = await getDiagnostics(text);
+		const dupDiag = diags.find(d => d.message.includes("Duplicate definition of 'a'"));
+		assert.ok(dupDiag, `expected duplicate diagnostic, got: ${diagMessages(diags).join(", ")}`);
+		assert.ok(dupDiag.relatedInformation, `expected relatedInformation`);
+		assert.ok(dupDiag.relatedInformation![0].message.includes("Previously defined here"));
+	});
+
+	test("duplicate input has relatedInformation pointing to original", async () => {
+		const text = `module main (x, x) -> (y)
+  y = x
+`;
+		const diags = await getDiagnostics(text);
+		const dupDiag = diags.find(d => d.message.includes("Duplicate definition of 'x'"));
+		assert.ok(dupDiag, `expected duplicate diagnostic`);
+		assert.ok(dupDiag.relatedInformation, `expected relatedInformation`);
+		assert.ok(dupDiag.relatedInformation![0].message.includes("Previously defined here"));
+	});
 });
