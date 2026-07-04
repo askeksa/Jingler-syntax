@@ -7,6 +7,8 @@ import {
 	Expression, ForCombinator,
 } from "./ast";
 
+const VALID_COMBINATORS = new Set(["add", "max", "min", "mul"]);
+
 class Parser {
 	private tokens: Token[];
 	private pos: number = 0;
@@ -496,9 +498,15 @@ class Parser {
 			this.expect("To");
 			const count = this.parseUnary();
 			const combTok = this.consume();
+			const combinatorPosition = this.posFromToken(combTok);
+			if (!VALID_COMBINATORS.has(combTok.text)) {
+				this.error(
+					`Invalid combinator '${combTok.text}'. Permitted repetition combinators are 'add', 'max', 'min' and 'mul'`
+				);
+			}
 			const combinator: ForCombinator = combTok.text as ForCombinator;
 			const body = this.parseExpression();
-			return { kind: "For", variable: varTok.text, count, combinator, body, position: pos };
+			return { kind: "For", variable: varTok.text, count, combinator, combinatorPosition, body, position: pos };
 		}
 		return this.parseOr();
 	}

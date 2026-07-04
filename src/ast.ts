@@ -209,6 +209,7 @@ export interface ForExpr {
 	variable: string;
 	count: Expression;
 	combinator: ForCombinator;
+	combinatorPosition: Position;
 	body: Expression;
 	position: Position;
 }

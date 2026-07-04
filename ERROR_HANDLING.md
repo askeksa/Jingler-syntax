@@ -92,12 +92,12 @@ From `type_inference.rs:696-750`:
 
 We don't check any of these.
 
-## 8. Missing: Combinator Validation
+## 8. Combinator Validation (Fixed)
 
 From `type_inference.rs:680-683`:
 - `"Permitted repetition combinators are '{x}', '{y}', ..."` — invalid combinator name in for-expression
 
-We don't check this.
+**Fixed**: Parser now validates combinator against `VALID_COMBINATORS = {add, max, min, mul}` and emits a parse error for invalid names.
 
 ## 9. Missing: Bytecode Emitter Errors
 
@@ -107,7 +107,7 @@ From `code_generator.rs` — these are only caught at code generation time, afte
 - `"Reference to a later variable is only allowed in a cell or delay."` — forward reference to a Node variable used outside a `cell`/`delay` call (`code_generator.rs:1057-1059`)
 - `"An iteration variable can only be used inside its repetition."` — for-loop variable referenced outside its `for`-expression body (`code_generator.rs:1062-1065`)
 
-We have **none** of these. The forward-reference checks (#3 and #4) are particularly important because they refine the forward reference semantics described in section 1.
+We have **none** of these. The forward-reference checks are particularly important because they refine the forward reference semantics described in section 1.
 
 ## 10. Severity Levels
 
@@ -129,7 +129,7 @@ The real compiler resolves includes relative to the **including file's parent di
 | Call context | 10+ types | None | Missing |
 | Arg count | 1 type | None | Missing |
 | Buffer init | 4 types | None | Missing |
-| Combinators | 1 type | None | Missing |
+| Combinators | 1 type | Validated | **Fixed** |
 | Bytecode emitter | 4 types | None | Missing |
 | Include paths | Relative to parent | Relative to main | **Bug** |
 | Severity levels | 5 levels | 1 level (Error) | Missing |
@@ -139,7 +139,7 @@ The real compiler resolves includes relative to the **including file's parent di
 1. ~~**Refine forward ref checking** — DONE (2026-07-04). Forward refs now allowed by default. Flagged only when: (a) outside `cell`/`delay`/`dyndelay` calls, (b) for-loop variables used outside their `for`-expression body. Cross-member forward refs also flagged.~~
 2. ~~**Fix include path resolution** — DONE (2026-07-04). Includes now resolve relative to each file's parent directory. Recursive include chains are handled correctly with circular-include guard.~~
 3. ~~**Add duplicate name detection** — DONE (2026-07-04). Detects: duplicate members, parameters, inputs, outputs, local variables, MIDI inputs, and built-in shadowing for members/parameters. Output names assigned in body are excluded (expected pattern).~~
-4. **Add combinator validation** — check `add`, `max`, `min`, `mul` only
+4. ~~**Add combinator validation** — DONE (2026-07-04). Parser validates combinator against `{add, max, min, mul}`, emits parse error for invalid names.~~
 5. **Add context errors** — main module, instrument, and note/global context validation
 6. **Add argument count errors** — compare call args to known signatures
 7. **Add call context errors** — module/function/instrument call-site validation

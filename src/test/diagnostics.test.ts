@@ -198,6 +198,15 @@ module main -> (out)
 		assert.strictEqual(diags.length, 0);
 	});
 
+	test("invalid combinator is flagged", async () => {
+		const text = `module main -> (out)
+  out = for i to 10 sub i
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.toLowerCase().includes("combinator")), `expected combinator error, got: ${messages.join(", ")}`);
+	});
+
 	test("assignment LHS is a definition, not unresolved", async () => {
 		const text = `module main -> (out)
   x = 1
