@@ -64,6 +64,7 @@ export interface Parameter {
 export interface Member {
 	context: ContextKind;
 	kind: MemberKind;
+	explicitContext: boolean;
 	midiParams: MidiParam[];
 	name: string;
 	inputs: PatternItem[];

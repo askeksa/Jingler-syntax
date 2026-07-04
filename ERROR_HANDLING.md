@@ -125,7 +125,7 @@ The real compiler resolves includes relative to the **including file's parent di
 | Duplicate names | 3 types | All 5 types | **Fixed** |
 | Context errors | 5 types | All 5 detected | **Fixed** |
 | Type errors | 25+ types | None | Missing |
-| Call context | 10+ types | None | Missing |
+| Call context | 10+ types | All 13 rules | **Fixed** |
 | Arg count | 1 type | Built-ins + members | **Fixed** |
 | Buffer init | 4 types | None | Missing |
 | Combinators | 1 type | Validated | **Fixed** |
@@ -141,7 +141,7 @@ The real compiler resolves includes relative to the **including file's parent di
 4. ~~**Add combinator validation** — DONE (2026-07-04). Parser validates combinator against `{add, max, min, mul}`, emits parse error for invalid names.~~
 5. ~~**Add context errors** — DONE (2026-07-04). All 5 context errors detected. Parser defaults `module` to `Global`, `function` to `Universal`. "No 'main' module" skipped (single-file limitation).~~
 6. ~~**Add argument count errors** — DONE (2026-07-04). Checks built-in calls via `BUILT_INS[name].args` and member calls via `inputs.length`. Added `args` to all built-ins, added missing `length` built-in.~~
-7. **Add call context errors** — module/function/instrument call-site validation
+7. ~~**Add call context errors** — DONE (2026-07-04). All 13 call-site validation rules implemented: context compatibility (module from function, global/note callee from wrong context, instrument from non-global), MIDI prefix rules (on function, on non-global module, instrument without/too many), and MIDI mapping validation (channel range, named input lookup, MIDI count mismatch). Built-in contexts added to `BUILT_INS` table.~~
 8. **Add bytecode emitter errors** — tuple indexing unsupported, built-in module in repetition body
 9. **Add severity levels** — map `SyntaxError`/`Error`/`Warning` to VS Code severities
 10. **Full type inference** — largest undertaking; requires porting `type_inference.rs` logic

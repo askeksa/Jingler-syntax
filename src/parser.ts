@@ -339,9 +339,10 @@ class Parser {
 		if (!explicitContext) {
 			if (kind === "Module") {
 				context = "Global";
+			} else if (kind === "Instrument") {
+				context = "Note";
 			}
 			// Function → Universal (already default)
-			// Instrument → Note (handled in diagnostics)
 		}
 
 		// MIDI params
@@ -361,7 +362,7 @@ class Parser {
 			this.error(`member missing name, got '${this.peekKind()}'`);
 			this.skipToNextMemberStart();
 			return {
-				context, kind, midiParams, name, inputs: [], outputs: [], body: [],
+				context, kind, explicitContext, midiParams, name, inputs: [], outputs: [], body: [],
 				position: { ...position, ...this.endPosition() }, namePosition,
 			};
 		}
@@ -382,7 +383,7 @@ class Parser {
 		}
 
 		return {
-			context, kind, midiParams, name, inputs, outputs, body,
+			context, kind, explicitContext, midiParams, name, inputs, outputs, body,
 			position: { ...position, ...this.endPosition() }, namePosition,
 		};
 	}

@@ -168,7 +168,7 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("foobar: unresolved identifier")), `expected unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Function or module not found: 'foobar'")), `expected unresolved, got: ${messages.join(", ")}`);
 	});
 
 	test("multiple unresolved identifiers each reported", async () => {
@@ -233,7 +233,7 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("missingModule: unresolved identifier")), `expected unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Function or module not found: 'missingModule'")), `expected unresolved, got: ${messages.join(", ")}`);
 	});
 
 	// --- Include file not found ---
@@ -368,7 +368,7 @@ module main -> (out)
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("unknownMethod: unresolved identifier")), `expected unresolved, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("Function or module not found: 'unknownMethod'")), `expected unresolved, got: ${messages.join(", ")}`);
 	});
 
 	// --- Duplicate detection ---
@@ -540,5 +540,283 @@ module main -> (out)
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
 		assert.ok(messages.some(m => m.includes("1 argument expected, 0 arguments")), `expected arg count error, got: ${messages.join(", ")}`);
+	});
+
+	// --- Call context errors ---
+
+	test("module called from function is flagged", async () => {
+		const text = `module calledFromFunc (x) -> (y)
+  y = x
+
+function myFunc (x) -> (y)
+  y = calledFromFunc(x)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Modules can't be called from functions")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("global module called from note context is flagged", async () => {
+		const text = `global module globalMod (x) -> (y)
+  y = x
+
+note module noteCaller (x) -> (y)
+  y = globalMod(x)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Global modules can only be called from other global modules")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("note module called from global context is flagged", async () => {
+		const text = `note module noteMod (x) -> (y)
+  y = x
+
+module main -> (out)
+  out = noteMod(1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Note modules can only be called from instruments and other note modules")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("global function called from note context is flagged", async () => {
+		const text = `global function globalFunc (x) -> (y)
+  y = x
+
+note module caller (x) -> (y)
+  y = globalFunc(x)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Global functions can only be called from global modules and other global functions")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("note function called from global context is flagged", async () => {
+		const text = `note function noteFunc (x) -> (y)
+  y = x
+
+module main -> (out)
+  out = noteFunc(1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Note functions can only be called from instruments, note modules and other note functions")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("instrument called from non-global module is flagged", async () => {
+		const text = `instrument myInst -> (out)
+  out = 1
+
+note module caller (x) -> (y)
+  y = noteOn60::myInst(x)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Instruments can only be called from global modules")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("instrument called without MIDI prefix is flagged", async () => {
+		const text = `instrument myInst -> (out)
+  out = 1
+
+module main -> (out)
+  out = myInst(1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Instruments must be prefixed with a MIDI input and '::'")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("instrument called with multiple MIDI inputs is flagged", async () => {
+		const text = `instrument myInst -> (out)
+  out = 1
+
+module main -> (out)
+  out = noteOn60::noteOn61::myInst(1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Instruments only take a single MIDI input")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("function called with MIDI prefix is flagged", async () => {
+		const text = `function myFunc (x) -> (y)
+  y = x
+
+module main -> (out)
+  out = noteOn60::myFunc(1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Functions can't be prefixed with MIDI inputs")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("non-global module called with MIDI prefix is flagged", async () => {
+		const text = `note module myMod (x) -> (y)
+  y = x
+
+module main -> (out)
+  out = noteOn60::myMod(1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Only global modules can be prefixed with MIDI inputs")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("MIDI channel out of range is flagged", async () => {
+		const text = `instrument myInst -> (out)
+  out = 1
+
+module main -> (out)
+  out = 0::myInst(1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("MIDI channel must be between 1 and 16")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("MIDI channel 17 is flagged", async () => {
+		const text = `instrument myInst -> (out)
+  out = 1
+
+module main -> (out)
+  out = 17::myInst(1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("MIDI channel must be between 1 and 16")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("named MIDI input not found is flagged", async () => {
+		const text = `module midiIn :: caller -> (out)
+  out = nonExistent::myInst(1)
+
+instrument myInst -> (out)
+  out = 1
+
+module main -> (result)
+  result = 1::caller()
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("MIDI input not found: 'nonExistent'")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("universal module is callable from any context", async () => {
+		const text = `module main -> (out)
+  out = cell(0, 1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.strictEqual(diags.length, 0, `expected no errors, got: ${messages.join(", ")}`);
+	});
+
+	test("note function callable from note context", async () => {
+		const text = `note function noteFunc (x) -> (y)
+  y = x
+
+note module caller (x) -> (y)
+  y = noteFunc(x)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.strictEqual(diags.length, 0, `expected no errors, got: ${messages.join(", ")}`);
+	});
+
+	test("global module callable from global module", async () => {
+		const text = `global module globalMod (x) -> (y)
+  y = x
+
+module main -> (out)
+  out = globalMod(1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.strictEqual(diags.length, 0, `expected no errors, got: ${messages.join(", ")}`);
+	});
+
+	test("instrument callable from global module with MIDI", async () => {
+		const text = `instrument myInst (x) -> (out)
+  out = x
+
+module main -> (out)
+  out = 1::myInst(1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.strictEqual(diags.length, 0, `expected no errors, got: ${messages.join(", ")}`);
+	});
+
+	test("instrument callable with named MIDI input", async () => {
+		const text = `instrument myInst (x) -> (out)
+  out = x
+
+module midiIn :: caller -> (out)
+  out = midiIn::myInst(1)
+
+module main -> (result)
+  result = 1::caller()
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.strictEqual(diags.length, 0, `expected no errors, got: ${messages.join(", ")}`);
+	});
+
+	test("note function called from instrument is allowed", async () => {
+		const text = `note function noteFunc (x) -> (y)
+  y = x
+
+instrument myInst -> (out)
+  out = noteFunc(1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.strictEqual(diags.length, 0, `expected no errors, got: ${messages.join(", ")}`);
+	});
+
+	test("unresolved call without MIDI says function or module not found", async () => {
+		const text = `module main -> (out)
+  out = doesNotExist(1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Function or module not found: 'doesNotExist'")), `expected not found message, got: ${messages.join(", ")}`);
+	});
+
+	test("unresolved call with MIDI says instrument or global module not found", async () => {
+		const text = `module main -> (out)
+  out = noteOn60::doesNotExist(1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Instrument or global module not found: 'doesNotExist'")), `expected not found message, got: ${messages.join(", ")}`);
+	});
+
+	test("gate called from global context is flagged", async () => {
+		const text = `module main -> (out)
+  out = gate()
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Note functions can only be called from instruments, note modules and other note functions")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	test("key called from note context is allowed", async () => {
+		const text = `note function caller (x) -> (y)
+  y = key()
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.strictEqual(diags.length, 0, `expected no errors, got: ${messages.join(", ")}`);
+	});
+
+	test("velocity called from instrument is allowed", async () => {
+		const text = `instrument myInst -> (out)
+  out = velocity()
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.strictEqual(diags.length, 0, `expected no errors, got: ${messages.join(", ")}`);
 	});
 });

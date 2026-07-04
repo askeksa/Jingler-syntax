@@ -1,14 +1,15 @@
 import * as vscode from 'vscode';
 import { parseZingDocument, ZingDocument } from "./document_symbols";
 import {
+	ContextKind,
 	Expression,
 	Include,
 	Member,
+	MemberKind,
 	Program,
 } from "./ast";
 import { walkExpression, isCellOrDelay, ExpressionVisitor } from "./expression_walk";
 import { BUILT_INS } from "./hover";
-import { MemberKind } from "./ast";
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -17,6 +18,8 @@ import { MemberKind } from "./ast";
 interface IdentRef {
 	name: string;
 	position: { line: number; character: number };
+	isCall?: boolean;
+	midiArgCount?: number;
 }
 
 function refRange(ref: IdentRef): vscode.Range {
@@ -31,8 +34,45 @@ function errorDiagnostic(range: vscode.Range, message: string): vscode.Diagnosti
 }
 
 /* ------------------------------------------------------------------ */
-/*  Collect ALL defined names in the program (no line awareness)       */
+/*  Generic include walker                                             */
+/*  Reads include files recursively, invokes `extract` per parsed doc. */
 /* ------------------------------------------------------------------ */
+
+type IncludeExtract<T> = (incDoc: ZingDocument, acc: T) => void;
+
+async function walkIncludes<T>(
+	includes: Include[],
+	baseUri: vscode.Uri,
+	extract: IncludeExtract<T>,
+	acc: T,
+	visited: Set<string> = new Set()
+): Promise<void> {
+	for (const inc of includes) {
+		if (inc.path === "") continue;
+		const includeUri = vscode.Uri.joinPath(baseUri, "..", inc.path);
+		try {
+			const bytes = await vscode.workspace.fs.readFile(includeUri);
+			const text = new TextDecoder().decode(bytes);
+			const incDoc = parseZingDocument(text, includeUri);
+			extract(incDoc, acc);
+			const incUri = includeUri.toString();
+			if (!visited.has(incUri)) {
+				visited.add(incUri);
+				await walkIncludes(incDoc.ast.includes, includeUri, extract, acc, visited);
+			}
+		} catch {
+			// skip unreadable includes
+		}
+	}
+}
+
+/* ------------------------------------------------------------------ */
+/*  Resolve an identifier – returns true if it can be resolved        */
+/* ------------------------------------------------------------------ */
+
+function isBuiltIn(name: string): boolean {
+	return name in BUILT_INS;
+}
 
 function collectAllDefinedNames(ast: Program): Set<string> {
 	const names = new Set<string>();
@@ -44,6 +84,26 @@ function collectAllDefinedNames(ast: Program): Set<string> {
 	}
 	return names;
 }
+
+async function resolveIdentifier(
+	doc: ZingDocument,
+	name: string,
+	memberDefinitions: Map<string, number> | null
+	): Promise<boolean> {
+		if (isBuiltIn(name)) return true;
+		if (memberDefinitions != null && memberDefinitions.has(name)) return true;
+		if (collectAllDefinedNames(doc.ast).has(name)) return true;
+
+		// Walk includes looking for the name
+		const found = { found: false };
+		await walkIncludes(doc.ast.includes, doc.uri, (incDoc, acc) => {
+			if (acc.found) return;
+			if (collectAllDefinedNames(incDoc.ast).has(name)) {
+				acc.found = true;
+			}
+		}, found);
+		return found.found;
+	}
 
 /* ------------------------------------------------------------------ */
 /*  Collect ALL defined names within a member (no line awareness)      */
@@ -66,14 +126,12 @@ function collectMemberDefinitions(
 	for (const param of parameters) {
 		definitions.set(param.name, param.position.line);
 	}
-
 	for (const item of member.inputs) {
 		definitions.set(item.name, item.position.line);
 	}
 	for (const item of member.outputs) {
 		definitions.set(item.name, item.position.line);
 	}
-
 	for (const stmt of member.body) {
 		for (const item of stmt.pattern) {
 			definitions.set(item.name, stmt.position.line);
@@ -148,7 +206,7 @@ function walkExpressionForDiagnostics(
 				walk(e.elseBranch, inCell);
 				break;
 			case "Call": {
-				refs.push({ name: e.name, position: e.position });
+				refs.push({ name: e.name, position: e.position, isCall: true, midiArgCount: e.midiArgs.length });
 				const isCell = isCellOrDelay(e.name);
 				if (isCell) {
 					for (const arg of e.arguments) {
@@ -220,57 +278,6 @@ function collectFwdRefs(
 }
 
 /* ------------------------------------------------------------------ */
-/*  Resolve an identifier – returns true if it can be resolved        */
-/* ------------------------------------------------------------------ */
-
-function isBuiltIn(name: string): boolean {
-	return name in BUILT_INS;
-}
-
-async function resolveIdentifier(
-	doc: ZingDocument,
-	name: string,
-	refLine: number,
-	memberDefinitions: Map<string, number> | null
-): Promise<boolean> {
-	if (isBuiltIn(name)) return true;
-
-	// Local scope: enclosing member inputs/outputs + body assignments
-	if (memberDefinitions != null && memberDefinitions.has(name)) return true;
-
-	// Top-level scope: parameters + members
-	const allNames = collectAllDefinedNames(doc.ast);
-	if (allNames.has(name)) return true;
-
-	// Include chain: symbols from included files
-	return await resolveInIncludes(doc.includes, doc.uri, name);
-}
-
-async function resolveInIncludes(
-	includePaths: string[],
-	baseUri: vscode.Uri,
-	name: string,
-	visited: Set<string> = new Set()
-): Promise<boolean> {
-	for (const includePath of includePaths) {
-		const includeUri = vscode.Uri.joinPath(baseUri, "..", includePath);
-		try {
-			const bytes = await vscode.workspace.fs.readFile(includeUri);
-			const text = new TextDecoder().decode(bytes);
-			const incDoc = parseZingDocument(text, includeUri);
-			const incNames = collectAllDefinedNames(incDoc.ast);
-			if (incNames.has(name)) return true;
-			if (visited.has(includeUri.toString())) continue;
-			visited.add(includeUri.toString());
-			if (await resolveInIncludes(incDoc.includes, includeUri, name, visited)) return true;
-		} catch {
-			// skip unreadable includes
-		}
-	}
-	return false;
-}
-
-/* ------------------------------------------------------------------ */
 /*  Diagnostic collection helpers                                      */
 /* ------------------------------------------------------------------ */
 
@@ -282,18 +289,6 @@ function diagnosticsFromParseErrors(ast: Program): vscode.Diagnostic[] {
 		);
 		return errorDiagnostic(range, err.message);
 	});
-}
-
-interface DocumentDiagnostics {
-	allMemberNames: Map<string, number>;
-}
-
-function computeDocumentDiagnostics(doc: ZingDocument): DocumentDiagnostics {
-	const allMemberNames = new Map<string, number>();
-	for (const m of doc.ast.members) {
-		allMemberNames.set(m.name, m.position.line);
-	}
-	return { allMemberNames };
 }
 
 async function diagnosticsFromMember(
@@ -332,12 +327,15 @@ async function diagnosticsFromMember(
 			}
 
 			// Check unresolved (includes top-level + includes)
-			const resolved = await resolveIdentifier(doc, ref.name, ref.position.line, definitions);
+			const resolved = await resolveIdentifier(doc, ref.name, definitions);
 			if (!resolved) {
-				diagnostics.push(errorDiagnostic(
-					refRange(ref),
-					`${ref.name}: unresolved identifier`
-				));
+				const hasMidi = ref.isCall && (ref.midiArgCount ?? 0) > 0;
+				const msg = hasMidi
+					? `Instrument or global module not found: '${ref.name}'.`
+					: ref.isCall
+						? `Function or module not found: '${ref.name}'.`
+						: `${ref.name}: unresolved identifier`;
+				diagnostics.push(errorDiagnostic(refRange(ref), msg));
 				continue;
 			}
 
@@ -371,7 +369,10 @@ async function diagnosticsFromMember(
 
 async function diagnosticsFromUnresolved(doc: ZingDocument): Promise<vscode.Diagnostic[]> {
 	const diagnostics: vscode.Diagnostic[] = [];
-	const { allMemberNames } = computeDocumentDiagnostics(doc);
+	const allMemberNames = new Map<string, number>();
+	for (const m of doc.ast.members) {
+		allMemberNames.set(m.name, m.position.line);
+	}
 	for (const member of doc.ast.members) {
 		diagnostics.push(...await diagnosticsFromMember(doc, member, allMemberNames));
 	}
@@ -381,27 +382,17 @@ async function diagnosticsFromUnresolved(doc: ZingDocument): Promise<vscode.Diag
 async function diagnosticsFromIncludes(ast: Program, uri: vscode.Uri): Promise<vscode.Diagnostic[]> {
 	const diagnostics: vscode.Diagnostic[] = [];
 	const visited = new Set<string>();
-	await resolveIncludePaths(ast.includes, uri, diagnostics, visited);
-	return diagnostics;
-}
-
-async function resolveIncludePaths(
-	includes: Include[],
-	baseUri: vscode.Uri,
-	diagnostics: vscode.Diagnostic[],
-	visited: Set<string>
-): Promise<void> {
-	for (const inc of includes) {
+	for (const inc of ast.includes) {
 		if (inc.path === "") continue;
-		const includeUri = vscode.Uri.joinPath(baseUri, "..", inc.path);
+		const includeUri = vscode.Uri.joinPath(uri, "..", inc.path);
 		try {
 			const bytes = await vscode.workspace.fs.readFile(includeUri);
 			const text = new TextDecoder().decode(bytes);
+			const incDoc = parseZingDocument(text, includeUri);
 			const incUri = includeUri.toString();
 			if (!visited.has(incUri)) {
 				visited.add(incUri);
-				const incDoc = parseZingDocument(text, includeUri);
-				await resolveIncludePaths(incDoc.ast.includes, includeUri, diagnostics, visited);
+				await diagnosticsFromIncludes(incDoc.ast, includeUri);
 			}
 		} catch {
 			const pos = inc.stringPosition ?? inc.position;
@@ -412,46 +403,25 @@ async function resolveIncludePaths(
 			diagnostics.push(errorDiagnostic(range, `${inc.path}: file not found`));
 		}
 	}
+	return diagnostics;
 }
 
 /* ------------------------------------------------------------------ */
 /*  Argument count errors                                              */
 /* ------------------------------------------------------------------ */
 
-async function collectMemberInputsFromIncludes(
-	includes: Include[],
-	baseUri: vscode.Uri,
-	memberInputs: Map<string, number>,
-	visited: Set<string> = new Set()
-): Promise<void> {
-	for (const inc of includes) {
-		if (inc.path === "") continue;
-		const includeUri = vscode.Uri.joinPath(baseUri, "..", inc.path);
-		try {
-			const bytes = await vscode.workspace.fs.readFile(includeUri);
-			const text = new TextDecoder().decode(bytes);
-			const incDoc = parseZingDocument(text, includeUri);
-			for (const m of incDoc.ast.members) {
-				if (!memberInputs.has(m.name)) {
-					memberInputs.set(m.name, m.inputs.length);
-				}
-			}
-			if (!visited.has(includeUri.toString())) {
-				visited.add(includeUri.toString());
-				await collectMemberInputsFromIncludes(incDoc.ast.includes, includeUri, memberInputs, visited);
-			}
-		} catch {
-			// skip unreadable includes
-		}
-	}
-}
-
 async function diagnosticsFromArgCount(ast: Program, uri: vscode.Uri): Promise<vscode.Diagnostic[]> {
 	const memberInputs = new Map<string, number>();
 	for (const m of ast.members) {
 		memberInputs.set(m.name, m.inputs.length);
 	}
-	await collectMemberInputsFromIncludes(ast.includes, uri, memberInputs);
+	await walkIncludes(ast.includes, uri, (incDoc, map) => {
+		for (const m of incDoc.ast.members) {
+			if (!map.has(m.name)) {
+				map.set(m.name, m.inputs.length);
+			}
+		}
+	}, memberInputs);
 
 	const diagnostics: vscode.Diagnostic[] = [];
 
@@ -482,6 +452,157 @@ async function diagnosticsFromArgCount(ast: Program, uri: vscode.Uri): Promise<v
 }
 
 /* ------------------------------------------------------------------ */
+/*  Call context errors                                                 */
+/* ------------------------------------------------------------------ */
+
+interface MemberSignature {
+	context: ContextKind;
+	kind: MemberKind;
+	midiInputCount: number;
+}
+
+function memberToSignature(m: Member): MemberSignature {
+	return {
+		context: m.context,
+		kind: m.kind,
+		midiInputCount: m.midiParams.length,
+	};
+}
+
+function lookupSignature(
+	name: string,
+	memberSigs: Map<string, MemberSignature>
+): MemberSignature | null {
+	if (memberSigs.has(name)) return memberSigs.get(name)!;
+	const bi = BUILT_INS[name];
+	if (bi) return { context: bi.context, kind: bi.memberKind, midiInputCount: 0 };
+	return null;
+}
+
+function pushCtxError(diagnostics: vscode.Diagnostic[], ref: IdentRef, message: string): void {
+	diagnostics.push(errorDiagnostic(refRange(ref), message));
+}
+
+async function diagnosticsFromCallContext(ast: Program, uri: vscode.Uri): Promise<vscode.Diagnostic[]> {
+	const memberSigs = new Map<string, MemberSignature>();
+	for (const m of ast.members) {
+		memberSigs.set(m.name, memberToSignature(m));
+	}
+	await walkIncludes(ast.includes, uri, (incDoc, map) => {
+		for (const m of incDoc.ast.members) {
+			if (!map.has(m.name)) {
+				map.set(m.name, memberToSignature(m));
+			}
+		}
+	}, memberSigs);
+
+	const diagnostics: vscode.Diagnostic[] = [];
+
+	for (const member of ast.members) {
+		const callerContext = member.context;
+		const callerKind = member.kind;
+		const callerMidiNames = new Set(member.midiParams.map(mp => mp.name));
+
+		for (const stmt of member.body) {
+			walkExpression(stmt.expression, {
+				visitCall: expr => {
+					const callee = lookupSignature(expr.name, memberSigs);
+					if (!callee) return;
+
+					const midiLen = expr.midiArgs.length;
+					const midiLoc = midiLen > 0 ? expr.midiArgs[0].position : expr.position;
+
+					// --- Context compatibility ---
+					if (callee.kind === "Module" && callerKind === "Function") {
+						pushCtxError(diagnostics, { name: expr.name, position: expr.position },
+							"Modules can't be called from functions.");
+						return;
+					}
+
+					if (callee.kind === "Module" && callee.context === "Global" && callerContext !== "Global") {
+						pushCtxError(diagnostics, { name: expr.name, position: expr.position },
+							"Global modules can only be called from other global modules.");
+						return;
+					}
+
+					if (callee.kind === "Module" && midiLen > 0 && callee.context !== "Global") {
+						pushCtxError(diagnostics, { name: expr.name, position: midiLoc },
+							"Only global modules can be prefixed with MIDI inputs.");
+						return;
+					}
+
+					if (callee.kind === "Module" && callee.context === "Note" && callerContext !== "Note") {
+						pushCtxError(diagnostics, { name: expr.name, position: expr.position },
+							"Note modules can only be called from instruments and other note modules.");
+						return;
+					}
+
+					if (callee.kind === "Function" && midiLen > 0) {
+						pushCtxError(diagnostics, { name: expr.name, position: midiLoc },
+							"Functions can't be prefixed with MIDI inputs.");
+						return;
+					}
+
+					if (callee.kind === "Function" && callee.context === "Global" && callerContext !== "Global") {
+						pushCtxError(diagnostics, { name: expr.name, position: expr.position },
+							"Global functions can only be called from global modules and other global functions.");
+						return;
+					}
+
+					if (callee.kind === "Function" && callee.context === "Note" && callerContext !== "Note") {
+						pushCtxError(diagnostics, { name: expr.name, position: expr.position },
+							"Note functions can only be called from instruments, note modules and other note functions.");
+						return;
+					}
+
+					// --- Instrument rules ---
+					if (callee.kind === "Instrument" && midiLen === 0) {
+						pushCtxError(diagnostics, { name: expr.name, position: midiLoc },
+							"Instruments must be prefixed with a MIDI input and '::'.");
+						return;
+					}
+
+					if (callee.kind === "Instrument" && midiLen > 1) {
+						pushCtxError(diagnostics, { name: expr.name, position: midiLoc },
+							"Instruments only take a single MIDI input.");
+						return;
+					}
+
+					if (callee.kind === "Instrument" && (callerKind !== "Module" || callerContext !== "Global")) {
+						pushCtxError(diagnostics, { name: expr.name, position: expr.position },
+							"Instruments can only be called from global modules.");
+						return;
+					}
+
+					// --- MIDI mapping validation ---
+					const shouldValidateMidi = callee.kind === "Instrument" || midiLen === callee.midiInputCount;
+					if (shouldValidateMidi) {
+						for (const mm of expr.midiArgs) {
+							if (mm.kind === "Value" && (mm.channel < 1 || mm.channel > 16)) {
+								pushCtxError(diagnostics, { name: expr.name, position: midiLoc },
+									"MIDI channel must be between 1 and 16.");
+								return;
+							}
+							if (mm.kind === "Named" && !callerMidiNames.has(mm.name)) {
+								pushCtxError(diagnostics, { name: mm.name, position: mm.position },
+									`MIDI input not found: '${mm.name}'.`);
+								return;
+							}
+						}
+					} else if (callee.kind !== "Instrument" && midiLen !== callee.midiInputCount) {
+						pushCtxError(diagnostics, { name: expr.name, position: expr.position },
+							`Incorrect number of MIDI inputs: ${midiLen} given, ${callee.midiInputCount} expected`);
+						return;
+					}
+				}
+			});
+		}
+	}
+
+	return diagnostics;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Context errors                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -492,21 +613,15 @@ function diagnosticsFromContext(ast: Program): vscode.Diagnostic[] {
 		if (member.name === "main") {
 			if (member.context === "Global" && member.kind === "Module") {
 				if (member.midiParams.length > 0) {
-					const pos = member.midiParams[0].position;
+					const mp = member.midiParams[0];
 					diagnostics.push(errorDiagnostic(
-						new vscode.Range(
-							new vscode.Position(pos.line, pos.character),
-							new vscode.Position(pos.line, pos.character + member.midiParams[0].name.length)
-						),
+						refRange({ name: mp.name, position: mp.position }),
 						"'main' can't have MIDI inputs."
 					));
 				}
 			} else {
 				diagnostics.push(errorDiagnostic(
-					new vscode.Range(
-						new vscode.Position(member.namePosition.line, member.namePosition.character),
-						new vscode.Position(member.namePosition.line, member.namePosition.character + member.name.length)
-					),
+					refRange({ name: member.name, position: member.namePosition }),
 					"'main' must be a global module."
 				));
 			}
@@ -515,30 +630,21 @@ function diagnosticsFromContext(ast: Program): vscode.Diagnostic[] {
 		if (member.kind === "Instrument") {
 			if (member.context === "Global") {
 				diagnostics.push(errorDiagnostic(
-					new vscode.Range(
-						new vscode.Position(member.namePosition.line, member.namePosition.character),
-						new vscode.Position(member.namePosition.line, member.namePosition.character + member.name.length)
-					),
+					refRange({ name: member.name, position: member.namePosition }),
 					"Instruments can't be global."
 				));
-			} else if (member.context === "Note") {
+			} else if (member.explicitContext && member.context === "Note") {
 				diagnostics.push(errorDiagnostic(
-					new vscode.Range(
-						new vscode.Position(member.namePosition.line, member.namePosition.character),
-						new vscode.Position(member.namePosition.line, member.namePosition.character + member.name.length)
-					),
+					refRange({ name: member.name, position: member.namePosition }),
 					"Instruments have implicit note context."
 				));
 			}
 		}
 
 		if (member.kind !== "Instrument" && member.context !== "Global" && member.midiParams.length > 0) {
-			const pos = member.midiParams[0].position;
+			const mp = member.midiParams[0];
 			diagnostics.push(errorDiagnostic(
-				new vscode.Range(
-					new vscode.Position(pos.line, pos.character),
-					new vscode.Position(pos.line, pos.character + member.midiParams[0].name.length)
-				),
+				refRange({ name: mp.name, position: mp.position }),
 				"Only global modules can have MIDI inputs."
 			));
 		}
@@ -560,12 +666,17 @@ function checkDuplicate(
 ): void {
 	const existing = seen.get(name);
 	if (existing) {
-		diagnostics.push(errorDiagnostic(
-			refRange({ name, position }),
-			message
-		));
+		diagnostics.push(errorDiagnostic(refRange({ name, position }), message));
 	} else {
 		seen.set(name, { name, position });
+	}
+}
+
+function memberKindLabel(kind: MemberKind): string {
+	switch (kind) {
+		case "Module": return "module";
+		case "Function": return "function";
+		case "Instrument": return "instrument";
 	}
 }
 
@@ -602,14 +713,6 @@ function diagnosticsFromDuplicates(ast: Program): vscode.Diagnostic[] {
 	}
 
 	return diagnostics;
-}
-
-function memberKindLabel(kind: MemberKind): string {
-	switch (kind) {
-		case "Module": return "module";
-		case "Function": return "function";
-		case "Instrument": return "instrument";
-	}
 }
 
 function diagnosticsFromMemberDuplicates(member: Member): vscode.Diagnostic[] {
@@ -653,11 +756,12 @@ function diagnosticsFromMemberDuplicates(member: Member): vscode.Diagnostic[] {
 export async function computeDiagnostics(document: vscode.TextDocument): Promise<vscode.Diagnostic[]> {
 	const doc = parseZingDocument(document.getText(), document.uri);
 
-	const [parseDiagnostics, duplicateDiagnostics, contextDiagnostics, argCountDiagnostics, unresolvedDiagnostics, includeDiagnostics] = await Promise.all([
+	const [parseDiagnostics, duplicateDiagnostics, contextDiagnostics, argCountDiagnostics, callContextDiagnostics, unresolvedDiagnostics, includeDiagnostics] = await Promise.all([
 		Promise.resolve(diagnosticsFromParseErrors(doc.ast)),
 		Promise.resolve(diagnosticsFromDuplicates(doc.ast)),
 		Promise.resolve(diagnosticsFromContext(doc.ast)),
 		diagnosticsFromArgCount(doc.ast, document.uri),
+		diagnosticsFromCallContext(doc.ast, document.uri),
 		diagnosticsFromUnresolved(doc),
 		diagnosticsFromIncludes(doc.ast, document.uri),
 	]);
@@ -667,6 +771,7 @@ export async function computeDiagnostics(document: vscode.TextDocument): Promise
 		...duplicateDiagnostics,
 		...contextDiagnostics,
 		...argCountDiagnostics,
+		...callContextDiagnostics,
 		...unresolvedDiagnostics,
 		...includeDiagnostics,
 	];
