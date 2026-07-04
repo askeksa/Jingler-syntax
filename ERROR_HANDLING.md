@@ -123,7 +123,7 @@ The real compiler resolves includes relative to the **including file's parent di
 |---|---|---|---|
 | Parse errors | 4 types | 1 generic | Minor |
 | Forward refs | Allowed (with 2 CG exceptions) | Allowed + 2 exceptions flagged | **Fixed** |
-| Duplicate names | 3 types | None | Missing |
+| Duplicate names | 3 types | All 5 types | **Fixed** |
 | Context errors | 5 types | None | Missing |
 | Type errors | 25+ types | None | Missing |
 | Call context | 10+ types | None | Missing |
@@ -138,7 +138,7 @@ The real compiler resolves includes relative to the **including file's parent di
 
 1. ~~**Refine forward ref checking** — DONE (2026-07-04). Forward refs now allowed by default. Flagged only when: (a) outside `cell`/`delay`/`dyndelay` calls, (b) for-loop variables used outside their `for`-expression body. Cross-member forward refs also flagged.~~
 2. ~~**Fix include path resolution** — DONE (2026-07-04). Includes now resolve relative to each file's parent directory. Recursive include chains are handled correctly with circular-include guard.~~
-3. **Add duplicate name detection** — members, variables, parameters, MIDI inputs, and built-in shadowing
+3. ~~**Add duplicate name detection** — DONE (2026-07-04). Detects: duplicate members, parameters, inputs, outputs, local variables, MIDI inputs, and built-in shadowing for members/parameters. Output names assigned in body are excluded (expected pattern).~~
 4. **Add combinator validation** — check `add`, `max`, `min`, `mul` only
 5. **Add context errors** — main module, instrument, and note/global context validation
 6. **Add argument count errors** — compare call args to known signatures

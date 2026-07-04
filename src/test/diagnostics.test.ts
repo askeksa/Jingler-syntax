@@ -361,4 +361,96 @@ module main -> (out)
 		const messages = diagMessages(diags);
 		assert.ok(messages.some(m => m.includes("unexpected token")), `expected parse error, got: ${messages.join(", ")}`);
 	});
+
+	// --- Duplicate detection ---
+
+	test("duplicate member name is flagged", async () => {
+		const text = `module main -> (out)
+  out = 1
+
+module main -> (out2)
+  out2 = 2
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Duplicate definition of 'main'")), `expected duplicate member, got: ${messages.join(", ")}`);
+	});
+
+	test("duplicate parameter name is flagged", async () => {
+		const text = `parameter tempo 60 to 200 = 120
+parameter tempo 60 to 200 = 60
+
+module main -> (out)
+  out = 1
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Duplicate definition of 'tempo'")), `expected duplicate param, got: ${messages.join(", ")}`);
+	});
+
+	test("duplicate input name is flagged", async () => {
+		const text = `module main (x, x) -> (out)
+  out = x
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Duplicate definition of 'x'")), `expected duplicate input, got: ${messages.join(", ")}`);
+	});
+
+	test("duplicate output name is flagged", async () => {
+		const text = `module main (x) -> (out, out)
+  out = x
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Duplicate definition of 'out'")), `expected duplicate output, got: ${messages.join(", ")}`);
+	});
+
+	test("duplicate local variable is flagged", async () => {
+		const text = `module main -> (out)
+  x = 1
+  x = 2
+  out = x
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Duplicate definition of 'x'")), `expected duplicate variable, got: ${messages.join(", ")}`);
+	});
+
+	test("duplicate MIDI input is flagged", async () => {
+		const text = `instrument kick:: snare:: kick:: piano -> (out)
+  out = 1
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("Duplicate MIDI input 'kick'")), `expected duplicate MIDI, got: ${messages.join(", ")}`);
+	});
+
+	test("member shadowing built-in is flagged", async () => {
+		const text = `module sin (x) -> (result)
+  result = x
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("has the same name as a built-in")), `expected built-in shadow, got: ${messages.join(", ")}`);
+	});
+
+	test("parameter shadowing built-in is flagged", async () => {
+		const text = `parameter sin 0 to 1 = 0.5
+
+module main -> (out)
+  out = 1
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("has the same name as a built-in")), `expected built-in shadow, got: ${messages.join(", ")}`);
+	});
+
+	test("output assigned in body is not a duplicate", async () => {
+		const text = `module main (x) -> (out)
+  out = x * 2
+`;
+		const diags = await getDiagnostics(text);
+		assert.strictEqual(diags.length, 0);
+	});
 });

@@ -8,6 +8,7 @@ import {
 } from "./ast";
 import { walkExpression, isCellOrDelay, ExpressionVisitor } from "./expression_walk";
 import { BUILT_INS } from "./hover";
+import { MemberKind } from "./ast";
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -414,20 +415,121 @@ async function resolveIncludePaths(
 }
 
 /* ------------------------------------------------------------------ */
+/*  Duplicate name detection                                           */
+/* ------------------------------------------------------------------ */
+
+function checkDuplicate(
+	diagnostics: vscode.Diagnostic[],
+	seen: Map<string, IdentRef>,
+	name: string,
+	position: { line: number; character: number },
+	message: string
+): void {
+	const existing = seen.get(name);
+	if (existing) {
+		diagnostics.push(errorDiagnostic(
+			refRange({ name, position }),
+			message
+		));
+	} else {
+		seen.set(name, { name, position });
+	}
+}
+
+function diagnosticsFromDuplicates(ast: Program): vscode.Diagnostic[] {
+	const diagnostics: vscode.Diagnostic[] = [];
+	const memberNames = new Map<string, IdentRef>();
+	const paramNames = new Map<string, IdentRef>();
+
+	for (const param of ast.parameters) {
+		checkDuplicate(diagnostics, paramNames, param.name, param.namePosition,
+			`Duplicate definition of '${param.name}'.`);
+		if (isBuiltIn(param.name)) {
+			diagnostics.push(errorDiagnostic(
+				refRange({ name: param.name, position: param.namePosition }),
+				`The parameter '${param.name}' has the same name as a built-in function.`
+			));
+		}
+	}
+
+	for (const member of ast.members) {
+		checkDuplicate(diagnostics, memberNames, member.name, member.namePosition,
+			`Duplicate definition of '${member.name}'.`);
+		if (isBuiltIn(member.name)) {
+			const kind = memberKindLabel(member.kind);
+			diagnostics.push(errorDiagnostic(
+				refRange({ name: member.name, position: member.namePosition }),
+				`The ${kind} '${member.name}' has the same name as a built-in ${kind}.`
+			));
+		}
+	}
+
+	for (const member of ast.members) {
+		diagnostics.push(...diagnosticsFromMemberDuplicates(member));
+	}
+
+	return diagnostics;
+}
+
+function memberKindLabel(kind: MemberKind): string {
+	switch (kind) {
+		case "Module": return "module";
+		case "Function": return "function";
+		case "Instrument": return "instrument";
+	}
+}
+
+function diagnosticsFromMemberDuplicates(member: Member): vscode.Diagnostic[] {
+	const diagnostics: vscode.Diagnostic[] = [];
+	const names = new Map<string, IdentRef>();
+	const midiNames = new Map<string, IdentRef>();
+	const outputNames = new Set<string>();
+
+	for (const midi of member.midiParams) {
+		if (midi.name === "_") continue;
+		checkDuplicate(diagnostics, midiNames, midi.name, midi.position,
+			`Duplicate MIDI input '${midi.name}'.`);
+	}
+
+	for (const item of member.inputs) {
+		checkDuplicate(diagnostics, names, item.name, item.position,
+			`Duplicate definition of '${item.name}'.`);
+	}
+
+	for (const item of member.outputs) {
+		outputNames.add(item.name);
+		checkDuplicate(diagnostics, names, item.name, item.position,
+			`Duplicate definition of '${item.name}'.`);
+	}
+
+	for (const stmt of member.body) {
+		for (const item of stmt.pattern) {
+			if (outputNames.has(item.name)) continue;
+			checkDuplicate(diagnostics, names, item.name, item.position,
+				`Duplicate definition of '${item.name}'.`);
+		}
+	}
+
+	return diagnostics;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Public: compute diagnostics for a document                         */
 /* ------------------------------------------------------------------ */
 
 export async function computeDiagnostics(document: vscode.TextDocument): Promise<vscode.Diagnostic[]> {
 	const doc = parseZingDocument(document.getText(), document.uri);
 
-	const [parseDiagnostics, unresolvedDiagnostics, includeDiagnostics] = await Promise.all([
+	const [parseDiagnostics, duplicateDiagnostics, unresolvedDiagnostics, includeDiagnostics] = await Promise.all([
 		Promise.resolve(diagnosticsFromParseErrors(doc.ast)),
+		Promise.resolve(diagnosticsFromDuplicates(doc.ast)),
 		diagnosticsFromUnresolved(doc),
 		diagnosticsFromIncludes(doc.ast, document.uri),
 	]);
 
 	return [
 		...parseDiagnostics,
+		...duplicateDiagnostics,
 		...unresolvedDiagnostics,
 		...includeDiagnostics,
 	];
