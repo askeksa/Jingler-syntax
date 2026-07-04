@@ -1,0 +1,63 @@
+ERROR_HANDLING.md
+  s_e78efc6f53edd9::t_505f5d9a7bf497 144
+  s_e78efc6f53edd9::t_a677825421478a 128
+src/diagnostics.ts
+  s_e78efc6f53edd9::t_51e0fc07f74a95 41,43,46-47,57,61
+  s_e78efc6f53edd9::t_430e8fcae3eeb1 517,519,522-525,529,531,534-537,541,543,546-555,559-574,581-589,593,595
+  s_e78efc6f53edd9::t_2b09218a7e8a3e 526-527,532-533
+  s_e78efc6f53edd9::t_2b7a93e3fb94b2 491-494,496
+  s_e78efc6f53edd9::t_1b8e6928598eb9 333-337
+  s_e78efc6f53edd9::t_0596c0afb7729e 482
+  s_e78efc6f53edd9::t_f05453ba054408 636
+  s_e78efc6f53edd9::t_0fa0695c398cb0 37-38,42,44-45,48-56,58-60,62-76,88-91,96,101,103,330,338,372-375,385,387,391,395,406,422,424,464-469,476,478,483-485,489,495,497,513-515,518,530,542,594,616,618,624,633,638,645,647,669,675-679
+  s_e78efc6f53edd9::t_b02e33130d6f02 4,8
+  s_e78efc6f53edd9::t_2e1c1e53d290a1 22
+  s_e78efc6f53edd9::t_82f568ed6bab3b 759,764,774
+  s_e78efc6f53edd9::t_0efd7b03d90460 92-95,97-100,102,104-106
+  s_e78efc6f53edd9::t_4061848a1c6f7c 209
+  s_e78efc6f53edd9::t_9799240ca0018b 21
+  s_e78efc6f53edd9::t_4718811e04fe6e 418-421,423
+  s_e78efc6f53edd9::t_1da0e3bb047fb3 332
+  s_e78efc6f53edd9::t_637cff6ff9e780 528
+  s_e78efc6f53edd9::t_fdbf0697e02939 454-463,470-475,477,479-481,486-488,490,498-512,516,520-521,538-540,544-545,556-558,575-580,590-592,596-604,680-681
+  s_e78efc6f53edd9::t_177b92cd0ae273 107
+  s_e78efc6f53edd9::t_7aa13372adb8bb 682
+src/hover.ts
+  s_e78efc6f53edd9::t_0d6b968b2d1e27 115-154
+  s_e78efc6f53edd9::t_ae8e167d5bcfc4 12-14
+  s_e78efc6f53edd9::t_454b07439befd0 11
+src/parser.ts
+  s_e78efc6f53edd9::t_3b5a7fd8b7b364 342-343
+  s_e78efc6f53edd9::t_1a33686773adae 365
+  s_e78efc6f53edd9::t_26d63be8a33092 386
+src/test/diagnostics.test.ts
+  s_e78efc6f53edd9::t_59db94bcdd6b9d 744
+  s_e78efc6f53edd9::t_ea86c0870bb37c 752-753,756
+  s_e78efc6f53edd9::t_8bc5d5125b2560 656,660
+  s_e78efc6f53edd9::t_3b88c19fab1e8b 371
+  s_e78efc6f53edd9::t_e10aa57961c9de 692,697-699
+  s_e78efc6f53edd9::t_cf8d325d3708ab 755,757
+  s_e78efc6f53edd9::t_aee0b68c4cc5aa 758-759
+  s_e78efc6f53edd9::t_241b09d71a341a 740-741
+  s_e78efc6f53edd9::t_9b1b6863b65e6a 544-655,657-659,661-691,693-696,700-739,742-743,745-751,754,760-821
+  s_e78efc6f53edd9::t_2f2748d1dc0024 171
+  s_e78efc6f53edd9::t_797dd39272f196 236
+src/ast.ts
+  s_e78efc6f53edd9::t_3411784fc77606 67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6781dbd3d8b2881065fe8b9fa44221102bd1f52f",
+  "prompts": {},
+  "sessions": {
+    "s_e78efc6f53edd9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0db92e82fffetCAvC8VRJHpMV3",
+        "model": "qwen36"
+      },
+      "human_author": "Carsten Elton Sørensen <cso@rift.dk>"
+    }
+  }
+}
