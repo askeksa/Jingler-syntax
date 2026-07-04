@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { parseZingDocument, ZingDocument } from "./document_symbols";
 import {
 	Expression,
+	Include,
 	Member,
 	Program,
 } from "./ast";
@@ -241,21 +242,26 @@ async function resolveIdentifier(
 	if (allNames.has(name)) return true;
 
 	// Include chain: symbols from included files
-	return await resolveInIncludes(doc, name);
+	return await resolveInIncludes(doc.includes, doc.uri, name);
 }
 
 async function resolveInIncludes(
-	doc: ZingDocument,
-	name: string
+	includePaths: string[],
+	baseUri: vscode.Uri,
+	name: string,
+	visited: Set<string> = new Set()
 ): Promise<boolean> {
-	for (const includePath of doc.includes) {
-		const includeUri = vscode.Uri.joinPath(doc.uri, "..", includePath);
+	for (const includePath of includePaths) {
+		const includeUri = vscode.Uri.joinPath(baseUri, "..", includePath);
 		try {
 			const bytes = await vscode.workspace.fs.readFile(includeUri);
 			const text = new TextDecoder().decode(bytes);
 			const incDoc = parseZingDocument(text, includeUri);
 			const incNames = collectAllDefinedNames(incDoc.ast);
 			if (incNames.has(name)) return true;
+			if (visited.has(includeUri.toString())) continue;
+			visited.add(includeUri.toString());
+			if (await resolveInIncludes(incDoc.includes, includeUri, name, visited)) return true;
 		} catch {
 			// skip unreadable includes
 		}
@@ -373,12 +379,29 @@ async function diagnosticsFromUnresolved(doc: ZingDocument): Promise<vscode.Diag
 
 async function diagnosticsFromIncludes(ast: Program, uri: vscode.Uri): Promise<vscode.Diagnostic[]> {
 	const diagnostics: vscode.Diagnostic[] = [];
+	const visited = new Set<string>();
+	await resolveIncludePaths(ast.includes, uri, diagnostics, visited);
+	return diagnostics;
+}
 
-	for (const inc of ast.includes) {
+async function resolveIncludePaths(
+	includes: Include[],
+	baseUri: vscode.Uri,
+	diagnostics: vscode.Diagnostic[],
+	visited: Set<string>
+): Promise<void> {
+	for (const inc of includes) {
 		if (inc.path === "") continue;
-		const includeUri = vscode.Uri.joinPath(uri, "..", inc.path);
+		const includeUri = vscode.Uri.joinPath(baseUri, "..", inc.path);
 		try {
-			await vscode.workspace.fs.readFile(includeUri);
+			const bytes = await vscode.workspace.fs.readFile(includeUri);
+			const text = new TextDecoder().decode(bytes);
+			const incUri = includeUri.toString();
+			if (!visited.has(incUri)) {
+				visited.add(incUri);
+				const incDoc = parseZingDocument(text, includeUri);
+				await resolveIncludePaths(incDoc.ast.includes, includeUri, diagnostics, visited);
+			}
 		} catch {
 			const pos = inc.stringPosition ?? inc.position;
 			const range = new vscode.Range(
@@ -388,8 +411,6 @@ async function diagnosticsFromIncludes(ast: Program, uri: vscode.Uri): Promise<v
 			diagnostics.push(errorDiagnostic(range, `${inc.path}: file not found`));
 		}
 	}
-
-	return diagnostics;
 }
 
 /* ------------------------------------------------------------------ */

@@ -80,19 +80,54 @@ export async function findSymbolInDocument(document: ZingDocument, symbol: strin
 	if (result != undefined)
 		return result;
 
+	const visited = new Set<string>();
 	for (let includePath of document.includes) {
 		let includeUri = vscode.Uri.joinPath(document.uri, "..", includePath);
 		try {
 			let bytes = await vscode.workspace.fs.readFile(includeUri);
 			let text = new TextDecoder().decode(bytes);
-			const found = await findSymbolInDocument(parseZingDocument(text, includeUri), symbol, cursorLine);
+			const incDoc = parseZingDocument(text, includeUri);
+			const found = await findSymbolInDocument(incDoc, symbol, cursorLine);
 			if (found != undefined)
 				return found;
+			if (visited.has(includeUri.toString())) continue;
+			visited.add(includeUri.toString());
+			const nestedFound = await findSymbolInIncludesRecursive(incDoc.includes, includeUri, symbol, cursorLine, visited);
+			if (nestedFound != undefined)
+				return nestedFound;
 		} catch (e) {
 			// Ignore errors reading the file
 		}
 	}
 
+	return undefined;
+}
+
+async function findSymbolInIncludesRecursive(
+	includePaths: string[],
+	baseUri: vscode.Uri,
+	symbol: string,
+	cursorLine: number,
+	visited: Set<string>
+): Promise<SymbolDefinition | undefined> {
+	for (const includePath of includePaths) {
+		const includeUri = vscode.Uri.joinPath(baseUri, "..", includePath);
+		try {
+			const bytes = await vscode.workspace.fs.readFile(includeUri);
+			const text = new TextDecoder().decode(bytes);
+			const incDoc = parseZingDocument(text, includeUri);
+			const found = await findSymbolInDocument(incDoc, symbol, cursorLine);
+			if (found != undefined)
+				return found;
+			if (visited.has(includeUri.toString())) continue;
+			visited.add(includeUri.toString());
+			const nestedFound = await findSymbolInIncludesRecursive(incDoc.includes, includeUri, symbol, cursorLine, visited);
+			if (nestedFound != undefined)
+				return nestedFound;
+		} catch {
+			// Ignore errors reading the file
+		}
+	}
 	return undefined;
 }
 

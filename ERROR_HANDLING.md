@@ -137,7 +137,7 @@ The real compiler resolves includes relative to the **including file's parent di
 ## Recommended Fixes (Priority Order)
 
 1. ~~**Refine forward ref checking** — DONE (2026-07-04). Forward refs now allowed by default. Flagged only when: (a) outside `cell`/`delay`/`dyndelay` calls, (b) for-loop variables used outside their `for`-expression body. Cross-member forward refs also flagged.~~
-2. **Fix include path resolution** — resolve relative to each file's parent directory, not the main file
+2. ~~**Fix include path resolution** — DONE (2026-07-04). Includes now resolve relative to each file's parent directory. Recursive include chains are handled correctly with circular-include guard.~~
 3. **Add duplicate name detection** — members, variables, parameters, MIDI inputs, and built-in shadowing
 4. **Add combinator validation** — check `add`, `max`, `min`, `mul` only
 5. **Add context errors** — main module, instrument, and note/global context validation
