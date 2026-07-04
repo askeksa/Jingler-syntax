@@ -1,0 +1,109 @@
+src/test/diagnostics.test.ts
+  s_e78efc6f53edd9::t_352265a33cded0 532
+  s_e78efc6f53edd9::t_7a6eb149c0d680 180-181,190
+  s_e78efc6f53edd9::t_2e55123478b6dc 78
+  s_e78efc6f53edd9::t_83670052970163 346
+  s_e78efc6f53edd9::t_c7f4120ab493a6 544
+  s_e78efc6f53edd9::t_6cbc1d82aaa25e 118,128
+  s_e78efc6f53edd9::t_18928ee6008c8f 899
+  s_e78efc6f53edd9::t_d79fc3d3c0dad2 284-285,294-296
+  s_e78efc6f53edd9::t_24d8c56a666974 248
+  s_e78efc6f53edd9::t_767df1da8d291b 271-273
+  s_e78efc6f53edd9::t_51c819e92a20a0 43
+  s_e78efc6f53edd9::t_59ae1cf5ed3e8c 305-307,316-317,326-328,337
+  s_e78efc6f53edd9::t_a39113cd48361b 90
+  s_e78efc6f53edd9::t_8dcd7fb0c21b09 523
+  s_e78efc6f53edd9::t_a1fbe881584e2e 363
+src/hover.ts
+  s_e78efc6f53edd9::t_9e472de368ffae 127-156
+  s_e78efc6f53edd9::t_bedfcd4227146d 167
+  s_e78efc6f53edd9::t_af0a80261081da 236
+  s_e78efc6f53edd9::t_6f6e248f8c55a8 232
+  s_e78efc6f53edd9::t_cc0574b3699214 104-105,108
+  s_e78efc6f53edd9::t_f819b9e2f2020c 253
+  s_e78efc6f53edd9::t_967c09d8064401 183
+  s_e78efc6f53edd9::t_308fff9420ca76 165-166,168
+  s_e78efc6f53edd9::t_0634b5cfaee321 173
+README.md
+  h_3a90fbf9715846 5,7
+AGENTS.md
+  s_e78efc6f53edd9::t_18e260472d56ef 55,57-58
+  s_e78efc6f53edd9::t_7453a96df68d54 22,50,60,68,76
+  s_e78efc6f53edd9::t_5ace3521254474 5,24-25,30,40-49,51-54,56,59,61-67,69-75,77-85
+  s_e78efc6f53edd9::t_81bcb57ce445e7 86-92
+package.json
+  h_3a90fbf9715846 8,27
+CHANGELOG.md
+  h_3a90fbf9715846 1-7
+ERROR_HANDLING.md
+  s_e78efc6f53edd9::t_982003447a49e1 10
+  s_e78efc6f53edd9::t_cbf6690d94674c 15
+  s_e78efc6f53edd9::t_d73a3df1eeaf83 18
+  s_e78efc6f53edd9::t_905105ced344e2 12
+BRAINDUMP.md
+  s_e78efc6f53edd9::t_9ad910d8a331ee 1-4,6,8,11-19,21-23,25-32,34,36-39,95-96,99,101,112,114-116,158,160,221,223,225,244,246,263-266,290-292,298,300,302-313,315-317
+  s_e78efc6f53edd9::t_47f33a3a474051 161,163
+  s_e78efc6f53edd9::t_4a1631e716cac6 218-220
+  s_e78efc6f53edd9::t_fa08cd9ebf5fd9 318-324
+  s_e78efc6f53edd9::t_ad9b44e5cdbffb 102,104-108,110-111
+  s_e78efc6f53edd9::t_07a5c96ee3f7da 61
+  s_e78efc6f53edd9::t_1d71faaac13242 5,7,9-10,24,33,35,40-60,62-75,77-79,81-94,97-98,100,103,109,113,117-157,159,162,164-177,180-213,215-217,222,224,226-243,245,247-262,267-289,293-297,299,301,314
+  s_e78efc6f53edd9::t_dad5a2da1b2ced 80
+  s_e78efc6f53edd9::t_05bbc594539a5d 20
+  s_e78efc6f53edd9::t_00e7e7c071c64a 178-179
+  s_e78efc6f53edd9::t_992ef317bfb04f 214
+  s_e78efc6f53edd9::t_1cd302b7a5d891 76
+src/diagnostics.ts
+  s_e78efc6f53edd9::t_559fabebd4b7a9 347
+  s_e78efc6f53edd9::t_a5839ec1ee2f0a 465
+  s_e78efc6f53edd9::t_5427b32960c8c3 371
+  s_e78efc6f53edd9::t_9e766258192af5 385
+  s_e78efc6f53edd9::t_184afd7c67fe0d 361
+  s_e78efc6f53edd9::t_cd14e95ecfc22a 427
+src/test/hover.test.ts
+  s_e78efc6f53edd9::t_7b26b98496c083 383
+  s_e78efc6f53edd9::t_a6f7185e0abd5d 353
+  s_e78efc6f53edd9::t_50a088c0ed7b3e 283
+  s_e78efc6f53edd9::t_8f3986683f118d 373
+  s_e78efc6f53edd9::t_4b0047eca2c953 550-551
+  s_e78efc6f53edd9::t_7dc1d482b2b472 403
+  s_e78efc6f53edd9::t_1801d1fa0552d6 293
+  s_e78efc6f53edd9::t_4aa012b08d1d2d 189
+  s_e78efc6f53edd9::t_0407fc74cfd56b 102
+  s_e78efc6f53edd9::t_0e8f850a129a72 423
+  s_e78efc6f53edd9::t_29b95c2e8d8d51 393
+  s_e78efc6f53edd9::t_97d51ec7de0580 36
+  s_e78efc6f53edd9::t_e6f2209a185e40 26
+  s_e78efc6f53edd9::t_e9fdad9d72242c 81
+  s_e78efc6f53edd9::t_f4fd88d99c35d1 57
+  s_e78efc6f53edd9::t_2c6c677a3024a2 69
+  s_e78efc6f53edd9::t_62ef31919074b6 130
+  s_e78efc6f53edd9::t_a3f22f6f3cbd3b 343
+  s_e78efc6f53edd9::t_4a0b0534c670f3 363
+  s_e78efc6f53edd9::t_93359288923586 433
+  s_e78efc6f53edd9::t_0395597b6ce6ed 141
+  s_e78efc6f53edd9::t_9c85c71c5673b5 91
+  s_e78efc6f53edd9::t_01d90133342702 46
+  s_e78efc6f53edd9::t_9754474979569d 561-565
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8d5c4a3de1ae8f55ec437054edd7befef960b6ef",
+  "prompts": {},
+  "humans": {
+    "h_3a90fbf9715846": {
+      "author": "Carsten Elton Sørensen <cso@rift.dk>"
+    }
+  },
+  "sessions": {
+    "s_e78efc6f53edd9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0db92e82fffetCAvC8VRJHpMV3",
+        "model": "qwen36"
+      },
+      "human_author": "Carsten Elton Sørensen <cso@rift.dk>"
+    }
+  }
+}
