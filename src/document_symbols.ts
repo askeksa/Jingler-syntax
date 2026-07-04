@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { Tokenizer } from "./tokenizer";
 import { parseTokens } from "./parser";
-import { Program, Member, Parameter, Statement } from "./ast";
+import { Program, Member, Parameter, Statement, PatternItem } from "./ast";
 
 export class ZingDocument {
 	symbols: vscode.SymbolInformation[];
@@ -36,127 +36,117 @@ export function isSymbolMiddleCharacter(ch: string) {
 	return isSymbolStartCharacter(ch) || (ch >= "0" && ch <= "9");
 }
 
-function toSymbol(name: string, kind: vscode.SymbolKind, position: { line: number; character: number; endLine?: number; endCharacter?: number }, uri: vscode.Uri): vscode.SymbolInformation {
-	const pos = new vscode.Position(position.line, position.character);
-	const endPos = position.endLine != undefined
+/* ------------------------------------------------------------------ */
+/*  Range construction helpers                                         */
+/* ------------------------------------------------------------------ */
+
+function makeRange(position: { line: number; character: number; endLine?: number; endCharacter?: number }, fallbackLength: number): vscode.Range {
+	const start = new vscode.Position(position.line, position.character);
+	const end = position.endLine != undefined
 		? new vscode.Position(position.endLine, position.endCharacter!)
-		: new vscode.Position(position.line, position.character + name.length);
+		: new vscode.Position(position.line, position.character + fallbackLength);
+	return new vscode.Range(start, end);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Symbol factories                                                   */
+/* ------------------------------------------------------------------ */
+
+function toSymbol(name: string, kind: vscode.SymbolKind, position: { line: number; character: number; endLine?: number; endCharacter?: number }, uri: vscode.Uri): vscode.SymbolInformation {
 	return new vscode.SymbolInformation(
 		name,
 		kind,
 		"",
-		new vscode.Location(uri, new vscode.Range(pos, endPos))
+		new vscode.Location(uri, makeRange(position, name.length))
 	);
 }
 
-function toSymbolDef(name: string, kind: vscode.SymbolKind, namePosition: { line: number; character: number; endLine?: number; endCharacter?: number }, fullPosition: { line: number; character: number; endLine?: number; endCharacter?: number }, uri: vscode.Uri): SymbolDefinition {
-	const namePos = new vscode.Position(namePosition.line, namePosition.character);
-	const nameEndPos = namePosition.endLine != undefined
-		? new vscode.Position(namePosition.endLine, namePosition.endCharacter!)
-		: new vscode.Position(namePosition.line, namePosition.character + name.length);
-	const fullPos = new vscode.Position(fullPosition.line, fullPosition.character);
-	const fullEndPos = fullPosition.endLine != undefined
-		? new vscode.Position(fullPosition.endLine, fullPosition.endCharacter!)
-		: new vscode.Position(fullPosition.line, fullPosition.character + name.length);
+function toSymbolDef(name: string, _kind: vscode.SymbolKind, namePosition: { line: number; character: number; endLine?: number; endCharacter?: number }, fullPosition: { line: number; character: number; endLine?: number; endCharacter?: number }, uri: vscode.Uri): SymbolDefinition {
 	return {
 		name,
-		nameRange: new vscode.Range(namePos, nameEndPos),
-		fullRange: new vscode.Range(fullPos, fullEndPos),
+		nameRange: makeRange(namePosition, name.length),
+		fullRange: makeRange(fullPosition, name.length),
 		uri,
 	};
 }
 
-export function collectDefinitionsFromMember(member: Member, uri: vscode.Uri): vscode.SymbolInformation[] {
-	const defs: vscode.SymbolInformation[] = [];
+/* ------------------------------------------------------------------ */
+/*  Collectors                                                         */
+/* ------------------------------------------------------------------ */
 
-	// Member name
+function collectFromPatternItem(item: PatternItem, uri: vscode.Uri): { symbol: vscode.SymbolInformation; defRange: SymbolDefinition } {
+	return {
+		symbol: toSymbol(item.name, vscode.SymbolKind.Variable, item.position, uri),
+		defRange: toSymbolDef(item.name, vscode.SymbolKind.Variable, item.position, item.position, uri),
+	};
+}
+
+function collectFromStatement(stmt: Statement, uri: vscode.Uri): { symbols: vscode.SymbolInformation[]; defRanges: SymbolDefinition[] } {
+	const symbols: vscode.SymbolInformation[] = [];
+	const defRanges: SymbolDefinition[] = [];
+	for (const item of stmt.pattern) {
+		if (item.name) {
+			const s = toSymbol(item.name, vscode.SymbolKind.Variable, item.position, uri);
+			const d = toSymbolDef(item.name, vscode.SymbolKind.Variable, item.position, stmt.position, uri);
+			symbols.push(s);
+			defRanges.push(d);
+		}
+	}
+	return { symbols, defRanges };
+}
+
+function collectFromParameter(param: Parameter, uri: vscode.Uri): { symbol: vscode.SymbolInformation; defRange: SymbolDefinition } {
+	return {
+		symbol: toSymbol(param.name, vscode.SymbolKind.Constant, param.namePosition, uri),
+		defRange: toSymbolDef(param.name, vscode.SymbolKind.Constant, param.namePosition, param.position, uri),
+	};
+}
+
+function collectFromMember(member: Member, uri: vscode.Uri): { symbols: vscode.SymbolInformation[]; defRanges: SymbolDefinition[] } {
+	const symbols: vscode.SymbolInformation[] = [];
+	const defRanges: SymbolDefinition[] = [];
+
 	if (member.name) {
-		defs.push(toSymbol(member.name, vscode.SymbolKind.Function, member.namePosition, uri));
+		symbols.push(toSymbol(member.name, vscode.SymbolKind.Function, member.namePosition, uri));
+		defRanges.push(toSymbolDef(member.name, vscode.SymbolKind.Function, member.namePosition, member.position, uri));
 	}
 
-	// Inputs
 	for (const item of member.inputs) {
 		if (item.name) {
-			defs.push(toSymbol(item.name, vscode.SymbolKind.Variable, item.position, uri));
+			const { symbol, defRange } = collectFromPatternItem(item, uri);
+			symbols.push(symbol);
+			defRanges.push(defRange);
 		}
 	}
 
-	// Outputs
 	for (const item of member.outputs) {
 		if (item.name) {
-			defs.push(toSymbol(item.name, vscode.SymbolKind.Variable, item.position, uri));
+			const { symbol, defRange } = collectFromPatternItem(item, uri);
+			symbols.push(symbol);
+			defRanges.push(defRange);
 		}
 	}
 
-	// Assignment statement patterns (local variables)
 	for (const stmt of member.body) {
-		collectDefinitionsFromStatement(stmt, uri, defs);
+		const { symbols: stmtSyms, defRanges: stmtDefs } = collectFromStatement(stmt, uri);
+		symbols.push(...stmtSyms);
+		defRanges.push(...stmtDefs);
 	}
 
-	return defs;
+	return { symbols, defRanges };
+}
+
+export function collectDefinitionsFromMember(member: Member, uri: vscode.Uri): vscode.SymbolInformation[] {
+	return collectFromMember(member, uri).symbols;
 }
 
 export function collectDefRangesFromMember(member: Member, uri: vscode.Uri): SymbolDefinition[] {
-	const defs: SymbolDefinition[] = [];
-
-	// Member name
-	if (member.name) {
-		defs.push(toSymbolDef(member.name, vscode.SymbolKind.Function, member.namePosition, member.position, uri));
-	}
-
-	// Inputs
-	for (const item of member.inputs) {
-		if (item.name) {
-			defs.push(toSymbolDef(item.name, vscode.SymbolKind.Variable, item.position, item.position, uri));
-		}
-	}
-
-	// Outputs
-	for (const item of member.outputs) {
-		if (item.name) {
-			defs.push(toSymbolDef(item.name, vscode.SymbolKind.Variable, item.position, item.position, uri));
-		}
-	}
-
-	// Assignment statement patterns (local variables)
-	for (const stmt of member.body) {
-		collectDefRangesFromStatement(stmt, uri, defs);
-	}
-
-	return defs;
+	return collectFromMember(member, uri).defRanges;
 }
 
-function collectDefinitionsFromStatement(stmt: Statement, uri: vscode.Uri, defs: vscode.SymbolInformation[]): void {
-	for (const item of stmt.pattern) {
-		if (item.name) {
-			defs.push(toSymbol(item.name, vscode.SymbolKind.Variable, item.position, uri));
-		}
-	}
-}
-
-function collectDefRangesFromStatement(stmt: Statement, uri: vscode.Uri, defs: SymbolDefinition[]): void {
-	for (const item of stmt.pattern) {
-		if (item.name) {
-			defs.push(toSymbolDef(item.name, vscode.SymbolKind.Variable, item.position, stmt.position, uri));
-		}
-	}
-}
-
-function collectDefinitionsFromParameter(param: Parameter, uri: vscode.Uri): vscode.SymbolInformation[] {
-	const defs: vscode.SymbolInformation[] = [];
-	if (param.name) {
-		defs.push(toSymbol(param.name, vscode.SymbolKind.Constant, param.namePosition, uri));
-	}
-	return defs;
-}
-
-function collectDefRangesFromParameter(param: Parameter, uri: vscode.Uri): SymbolDefinition[] {
-	const defs: SymbolDefinition[] = [];
-	if (param.name) {
-		defs.push(toSymbolDef(param.name, vscode.SymbolKind.Constant, param.namePosition, param.position, uri));
-	}
-	return defs;
-}
+/* ------------------------------------------------------------------ */
+/*  Parse                                                              */
+/* ------------------------------------------------------------------ */
 
 export function parseZingDocument(text: string, uri: vscode.Uri): ZingDocument {
 	if (text == undefined) {
@@ -171,16 +161,16 @@ export function parseZingDocument(text: string, uri: vscode.Uri): ZingDocument {
 	doc.definitions = [];
 	doc.definitionRanges = [];
 
-	// Top-level parameters
 	for (const param of ast.parameters) {
-		doc.definitions.push(...collectDefinitionsFromParameter(param, uri));
-		doc.definitionRanges.push(...collectDefRangesFromParameter(param, uri));
+		const { symbol, defRange } = collectFromParameter(param, uri);
+		doc.definitions.push(symbol);
+		doc.definitionRanges.push(defRange);
 	}
 
-	// Members (name + inputs + outputs + body assignments)
 	for (const member of ast.members) {
-		doc.definitions.push(...collectDefinitionsFromMember(member, uri));
-		doc.definitionRanges.push(...collectDefRangesFromMember(member, uri));
+		const { symbols, defRanges } = collectFromMember(member, uri);
+		doc.definitions.push(...symbols);
+		doc.definitionRanges.push(...defRanges);
 	}
 
 	doc.includes = ast.includes.map(i => i.path);
@@ -188,14 +178,12 @@ export function parseZingDocument(text: string, uri: vscode.Uri): ZingDocument {
 	return doc;
 }
 
-
 export function documentSymbols(document: vscode.TextDocument): vscode.SymbolInformation[] {
 	if (document != undefined) {
 		return parseZingDocument(document.getText(), document.uri).symbols;
 	}
 	return [];
 }
-
 
 export let documentSymbolProvider: vscode.DocumentSymbolProvider = {
 	provideDocumentSymbols(document: vscode.TextDocument, _token: vscode.CancellationToken): vscode.ProviderResult<vscode.SymbolInformation[] | vscode.DocumentSymbol[]> {

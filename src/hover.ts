@@ -108,7 +108,7 @@ function formatPattern(items: PatternItem[]): string {
 /*  Built-in signatures                                                */
 /* ------------------------------------------------------------------ */
 
-const BUILT_INS: Record<string, { kind: string; signature: string; description: string }> = {
+export const BUILT_INS: Record<string, { kind: string; signature: string; description: string }> = {
 	"atan2": { kind: "function", signature: "atan2(`x`: mono, `y`: mono) → mono", description: "" },
 	"ceil": { kind: "function", signature: "ceil(`x`: generic) → generic", description: "" },
 	"cos": { kind: "function", signature: "cos(`x`: mono) → mono", description: "" },

@@ -7,7 +7,7 @@
     "repository": "https://github.com/askeksa/jingler-syntax",
     "version": "1.1.3",
     "engines": {
-        "vscode": "^1.73.0"
+        "vscode": "^1.75.0"
     },
     "activationEvents": [
         "onLanguage:zing"
@@ -24,7 +24,7 @@
     "devDependencies": {
         "@types/mocha": "^10.0.10",
         "@types/node": "^18",
-        "@types/vscode": "^1.73.0",
+        "@types/vscode": "^1.125.0",
         "@typescript-eslint/eslint-plugin": "^7.18.0",
         "@typescript-eslint/parser": "^7.18.0",
         "@vscode/test-electron": "^2.3.0",
@@ -53,13 +53,27 @@
             {
                 "language": "zing",
                 "scopes": {
-                    "zingToplevel": ["storage.type.zing.toplevel"],
-                    "zingToplevelModifier": ["storage.modifier.zing.toplevel"],
-                    "zingScope": ["entity.name.type.zing.scope"],
-                    "zingWidth": ["entity.name.type.zing.width"],
-                    "zingType": ["entity.name.type.zing.type"],
-                    "zingControl": ["keyword.control.zing"],
-                    "supportFunction": ["support.function"]
+                    "zingToplevel": [
+                        "storage.type.zing.toplevel"
+                    ],
+                    "zingToplevelModifier": [
+                        "storage.modifier.zing.toplevel"
+                    ],
+                    "zingScope": [
+                        "entity.name.type.zing.scope"
+                    ],
+                    "zingWidth": [
+                        "entity.name.type.zing.width"
+                    ],
+                    "zingType": [
+                        "entity.name.type.zing.type"
+                    ],
+                    "zingControl": [
+                        "keyword.control.zing"
+                    ],
+                    "supportFunction": [
+                        "support.function"
+                    ]
                 }
             }
         ]

@@ -256,14 +256,16 @@ class Parser {
 	private parseInclude(): Include {
 		const start = this.consume("Include");
 		let path = "";
+		let stringPosition: Position | undefined;
 		const strTok = this.expect("String");
 		if (strTok) {
 			path = strTok.text;
+			stringPosition = this.posFromToken(strTok);
 			if (path.startsWith('"') && path.endsWith('"')) {
 				path = path.slice(1, -1);
 			}
 		}
-		return { path, position: this.posFromToken(start) };
+		return { path, position: this.posFromToken(start), stringPosition };
 	}
 
 	// --- Parameter ---

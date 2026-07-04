@@ -6,6 +6,7 @@ import {
 	PatternItem, Statement, Expression,
 	MidiMapping, MidiNoteRange,
 } from "./ast";
+import { walkExpression, ExpressionVisitor } from "./expression_walk";
 
 /* ------------------------------------------------------------------ */
 /*  Legend — custom types mapped to TextMate scopes via               */
@@ -158,33 +159,24 @@ class AstWalker {
 	}
 
 	private visitParameter(param: Parameter): void {
-		// 'parameter' keyword already classified by tokenizer default
-		// name → parameter + declaration
 		this.set(param.namePosition.line, param.namePosition.character, { type: TT.parameter, modifiers: MOD.declaration });
 	}
 
 	private visitMember(member: Member): void {
-		// Context/Kind keywords already classified by tokenizer default
-
-		// MIDI params → parameter + declaration
 		for (const mp of member.midiParams) {
 			this.set(mp.position.line, mp.position.character, { type: TT.parameter, modifiers: MOD.declaration });
 		}
 
-		// Name → function + declaration
 		this.set(member.namePosition.line, member.namePosition.character, { type: TT.function, modifiers: MOD.declaration });
 
-		// Inputs
 		for (const item of member.inputs) {
 			this.visitPatternItem(item);
 		}
 
-		// Outputs
 		for (const item of member.outputs) {
 			this.visitPatternItem(item);
 		}
 
-		// Body
 		for (const stmt of member.body) {
 			this.visitStatement(stmt);
 		}
@@ -202,69 +194,15 @@ class AstWalker {
 	}
 
 	private visitExpression(expr: Expression): void {
-		switch (expr.kind) {
-			case "NumberLiteral":
-			case "BoolLiteral":
-				break;
-			case "Variable":
-				break;
-			case "Unary":
-				this.visitExpression(expr.operand);
-				break;
-			case "Binary":
-				this.visitExpression(expr.left);
-				this.visitExpression(expr.right);
-				break;
-			case "Conditional":
-				this.visitExpression(expr.condition);
-				this.visitExpression(expr.thenBranch);
-				this.visitExpression(expr.elseBranch);
-				break;
-			case "Call":
-				this.visitCall(expr);
-				break;
-			case "Tuple":
-				for (const el of expr.elements) {
-					this.visitExpression(el);
+		const visitor: ExpressionVisitor = {
+			visitCall: e => {
+				for (const midi of e.midiArgs) {
+					this.visitMidiMapping(midi);
 				}
-				break;
-			case "Merge":
-				this.visitExpression(expr.left);
-				this.visitExpression(expr.right);
-				break;
-			case "TupleIndex":
-				this.visitExpression(expr.target);
-				break;
-			case "BufferIndex":
-				this.visitExpression(expr.target);
-				this.visitExpression(expr.index);
-				break;
-			case "BufferLiteral":
-				for (const el of expr.elements) {
-					this.visitExpression(el);
-				}
-				break;
-			case "For":
-				this.visitFor(expr);
-				break;
-			case "BufferInit":
-				this.visitBufferInit(expr);
-				break;
-			case "Expand":
-				this.visitExpression(expr.expression);
-				break;
-		}
-	}
-
-	private visitCall(call: Expression & { kind: "Call"; midiArgs: MidiMapping[]; name: string; arguments: Expression[]; position: { line: number; character: number } }): void {
-		for (const midi of call.midiArgs) {
-			this.visitMidiMapping(midi);
-		}
-		// Name → function
-		this.set(call.position.line, call.position.character, { type: TT.function, modifiers: 0 });
-		for (const arg of call.arguments) {
-			this.visitExpression(arg);
-		}
+				this.set(e.position.line, e.position.character, { type: TT.function, modifiers: 0 });
+			},
+		};
+		walkExpression(expr, visitor);
 	}
 
 	private visitMidiMapping(midi: MidiMapping): void {
@@ -272,24 +210,11 @@ class AstWalker {
 			this.set(midi.position.line, midi.position.character, { type: TT.parameter, modifiers: 0 });
 		} else {
 			this.visitMidiNoteRange(midi.range);
-			if (midi.transposeTo !== 255) {
-				// Transpose note — we don't have the position, skip
-			}
 		}
 	}
 
 	private visitMidiNoteRange(range: MidiNoteRange): void {
 		this.set(range.position.line, range.position.character, { type: TT.number, modifiers: 0 });
-	}
-
-	private visitFor(forExpr: Expression & { kind: "For"; variable: string; count: Expression; combinator: string; body: Expression; position: { line: number; character: number } }): void {
-		this.visitExpression(forExpr.count);
-		this.visitExpression(forExpr.body);
-	}
-
-	private visitBufferInit(expr: Expression & { kind: "BufferInit"; length: Expression; body: Expression; position: { line: number; character: number } }): void {
-		this.visitExpression(expr.length);
-		this.visitExpression(expr.body);
 	}
 
 	private set(line: number, character: number, info: SemanticTokenInfo): void {

@@ -76,6 +76,7 @@ export interface Member {
 export interface Include {
 	path: string;
 	position: Position;
+	stringPosition?: Position;
 }
 
 export interface ParseError {
