@@ -377,6 +377,7 @@ A pattern is a comma-separated list of named variables with optional type annota
 | `gate` | `() → mono bool` | Note gate status (note context) |
 | `gmdls` | `(mono, mono) → mono` | GM DLS sample mapping |
 | `index` | `(generic buffer) → mono` | Buffer indexing |
+| `length` | `(generic buffer) → mono` | Buffer length |
 | `key` | `() → mono` | MIDI note number (note context) |
 | `left` | `(stereo) → mono` | Left channel |
 | `length` | `(generic buffer) → mono` | Buffer length |

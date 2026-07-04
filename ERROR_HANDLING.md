@@ -74,12 +74,12 @@ From `type_inference.rs:520-631`:
 
 We check for **unresolved call targets** but not for any of the context/validation errors.
 
-## 6. Missing: Argument Count Errors
+## 6. Argument Count Errors (Fixed)
 
 From `type_inference.rs:772-805`:
 - `"{x} arguments expected, {y} given"` — wrong number of args for a call
 
-We don't check this.
+**Fixed**: Checks both built-in calls (via `BUILT_INS[name].args`) and member calls (via member's `inputs.length`). Also added `args` count to all built-in entries and added missing `length` built-in.
 
 ## 7. Missing: Buffer Init Validation
 
@@ -126,7 +126,7 @@ The real compiler resolves includes relative to the **including file's parent di
 | Context errors | 5 types | All 5 detected | **Fixed** |
 | Type errors | 25+ types | None | Missing |
 | Call context | 10+ types | None | Missing |
-| Arg count | 1 type | None | Missing |
+| Arg count | 1 type | Built-ins + members | **Fixed** |
 | Buffer init | 4 types | None | Missing |
 | Combinators | 1 type | Validated | **Fixed** |
 | Bytecode emitter | 4 types | None | Missing |
@@ -140,7 +140,7 @@ The real compiler resolves includes relative to the **including file's parent di
 3. ~~**Add duplicate name detection** — DONE (2026-07-04). Detects: duplicate members, parameters, inputs, outputs, local variables, MIDI inputs, and built-in shadowing for members/parameters. Output names assigned in body are excluded (expected pattern).~~
 4. ~~**Add combinator validation** — DONE (2026-07-04). Parser validates combinator against `{add, max, min, mul}`, emits parse error for invalid names.~~
 5. ~~**Add context errors** — DONE (2026-07-04). All 5 context errors detected. Parser defaults `module` to `Global`, `function` to `Universal`. "No 'main' module" skipped (single-file limitation).~~
-6. **Add argument count errors** — compare call args to known signatures
+6. ~~**Add argument count errors** — DONE (2026-07-04). Checks built-in calls via `BUILT_INS[name].args` and member calls via `inputs.length`. Added `args` to all built-ins, added missing `length` built-in.~~
 7. **Add call context errors** — module/function/instrument call-site validation
 8. **Add bytecode emitter errors** — tuple indexing unsupported, built-in module in repetition body
 9. **Add severity levels** — map `SyntaxError`/`Error`/`Warning` to VS Code severities

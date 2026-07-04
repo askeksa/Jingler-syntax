@@ -415,6 +415,73 @@ async function resolveIncludePaths(
 }
 
 /* ------------------------------------------------------------------ */
+/*  Argument count errors                                              */
+/* ------------------------------------------------------------------ */
+
+async function collectMemberInputsFromIncludes(
+	includes: Include[],
+	baseUri: vscode.Uri,
+	memberInputs: Map<string, number>,
+	visited: Set<string> = new Set()
+): Promise<void> {
+	for (const inc of includes) {
+		if (inc.path === "") continue;
+		const includeUri = vscode.Uri.joinPath(baseUri, "..", inc.path);
+		try {
+			const bytes = await vscode.workspace.fs.readFile(includeUri);
+			const text = new TextDecoder().decode(bytes);
+			const incDoc = parseZingDocument(text, includeUri);
+			for (const m of incDoc.ast.members) {
+				if (!memberInputs.has(m.name)) {
+					memberInputs.set(m.name, m.inputs.length);
+				}
+			}
+			if (!visited.has(includeUri.toString())) {
+				visited.add(includeUri.toString());
+				await collectMemberInputsFromIncludes(incDoc.ast.includes, includeUri, memberInputs, visited);
+			}
+		} catch {
+			// skip unreadable includes
+		}
+	}
+}
+
+async function diagnosticsFromArgCount(ast: Program, uri: vscode.Uri): Promise<vscode.Diagnostic[]> {
+	const memberInputs = new Map<string, number>();
+	for (const m of ast.members) {
+		memberInputs.set(m.name, m.inputs.length);
+	}
+	await collectMemberInputsFromIncludes(ast.includes, uri, memberInputs);
+
+	const diagnostics: vscode.Diagnostic[] = [];
+
+	for (const member of ast.members) {
+		for (const stmt of member.body) {
+			walkExpression(stmt.expression, {
+				visitCall: expr => {
+					let expectedArgs: number | null = null;
+					if (expr.name in BUILT_INS) {
+						expectedArgs = BUILT_INS[expr.name].args;
+					} else if (memberInputs.has(expr.name)) {
+						expectedArgs = memberInputs.get(expr.name)!;
+					}
+					if (expectedArgs != null && expr.arguments.length !== expectedArgs) {
+						const expected = expectedArgs === 1 ? "argument" : "arguments";
+						const given = expr.arguments.length === 1 ? "argument" : "arguments";
+						diagnostics.push(errorDiagnostic(
+							refRange({ name: expr.name, position: expr.position }),
+							`${expectedArgs} ${expected} expected, ${expr.arguments.length} ${given}`
+						));
+					}
+				}
+			});
+		}
+	}
+
+	return diagnostics;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Context errors                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -586,10 +653,11 @@ function diagnosticsFromMemberDuplicates(member: Member): vscode.Diagnostic[] {
 export async function computeDiagnostics(document: vscode.TextDocument): Promise<vscode.Diagnostic[]> {
 	const doc = parseZingDocument(document.getText(), document.uri);
 
-	const [parseDiagnostics, duplicateDiagnostics, contextDiagnostics, unresolvedDiagnostics, includeDiagnostics] = await Promise.all([
+	const [parseDiagnostics, duplicateDiagnostics, contextDiagnostics, argCountDiagnostics, unresolvedDiagnostics, includeDiagnostics] = await Promise.all([
 		Promise.resolve(diagnosticsFromParseErrors(doc.ast)),
 		Promise.resolve(diagnosticsFromDuplicates(doc.ast)),
 		Promise.resolve(diagnosticsFromContext(doc.ast)),
+		diagnosticsFromArgCount(doc.ast, document.uri),
 		diagnosticsFromUnresolved(doc),
 		diagnosticsFromIncludes(doc.ast, document.uri),
 	]);
@@ -598,6 +666,7 @@ export async function computeDiagnostics(document: vscode.TextDocument): Promise
 		...parseDiagnostics,
 		...duplicateDiagnostics,
 		...contextDiagnostics,
+		...argCountDiagnostics,
 		...unresolvedDiagnostics,
 		...includeDiagnostics,
 	];

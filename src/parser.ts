@@ -765,6 +765,10 @@ class Parser {
 
 	private parseCallArgs(): Expression[] {
 		this.consume("LParen");
+		if (this.peekKind() === "RParen") {
+			this.consume();
+			return [];
+		}
 		const args = this.parseCommaSeparated(() => this.parseExpression());
 		this.expect("RParen");
 		return args;

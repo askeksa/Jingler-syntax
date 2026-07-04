@@ -11,7 +11,7 @@ parameter pan -100 to 100
 
 global module main () -> (out: stereo number)
 	out = mix(leftCh, rightCh)
-	leftCh = envelope(saw(60), attack, release)
+	leftCh = envelope(saw(60), attack, release, 4)
 	rightCh = gain(saw(64), 0.5)
 	attack = 0.01
 	release = 0.3

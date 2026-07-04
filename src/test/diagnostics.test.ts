@@ -361,14 +361,14 @@ module main -> (out)
 		assert.ok(messages.some(m => m.includes("badLen: unresolved identifier")), `expected badLen unresolved, got: ${messages.join(", ")}`);
 	});
 
-	test("method-style call produces parse error (dot notation not supported)", async () => {
+	test("method-style call chains receiver as first arg (unknown method is unresolved)", async () => {
 		const text = `module main -> (out)
   x = 1
   out = x.unknownMethod()
 `;
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("unexpected token")), `expected parse error, got: ${messages.join(", ")}`);
+		assert.ok(messages.some(m => m.includes("unknownMethod: unresolved identifier")), `expected unresolved, got: ${messages.join(", ")}`);
 	});
 
 	// --- Duplicate detection ---
@@ -508,5 +508,37 @@ module main -> (out)
 		const diags = await getDiagnostics(text);
 		const messages = diagMessages(diags);
 		assert.ok(messages.some(m => m.includes("Only global modules can have MIDI inputs")), `expected context error, got: ${messages.join(", ")}`);
+	});
+
+	// --- Argument count errors ---
+
+	test("built-in with too many args is flagged", async () => {
+		const text = `module main -> (out)
+  out = sin(1, 2, 3)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("1 argument expected, 3 arguments")), `expected arg count error, got: ${messages.join(", ")}`);
+	});
+
+	test("built-in with too few args is flagged", async () => {
+		const text = `module main -> (out)
+  out = max(1)
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("2 arguments expected, 1 argument")), `expected arg count error, got: ${messages.join(", ")}`);
+	});
+
+	test("member call with wrong arg count is flagged", async () => {
+		const text = `module helper (x) -> (y)
+  y = x
+
+module main -> (out)
+  out = helper()
+`;
+		const diags = await getDiagnostics(text);
+		const messages = diagMessages(diags);
+		assert.ok(messages.some(m => m.includes("1 argument expected, 0 arguments")), `expected arg count error, got: ${messages.join(", ")}`);
 	});
 });
