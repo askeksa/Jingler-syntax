@@ -418,5 +418,58 @@ test("midi mapping param", () => {
 			assert.strictEqual(ast.members[2].name, "baz");
 			assert.ok(ast.parseErrors.length > 0);
 		});
+
+		test("trailing multiply before function keyword recovers", () => {
+			const ast = parse("function mod1(a: generic) -> (b: generic)\n  b = a - floor(a) *\nfunction range(in: generic, low: generic, high: generic) -> (out: generic)\n  out = low + (in + 1) * (high - low) * 0.5");
+			assert.strictEqual(ast.members.length, 2);
+			assert.strictEqual(ast.members[0].name, "mod1");
+			assert.strictEqual(ast.members[1].name, "range");
+			assert.ok(ast.parseErrors.length > 0);
+		});
+
+		test("trailing add before module keyword recovers", () => {
+			const ast = parse("module a() -> (o)\n  o = 1 +\nmodule b() -> (o)\n  o = 2");
+			assert.strictEqual(ast.members.length, 2);
+			assert.strictEqual(ast.members[0].name, "a");
+			assert.strictEqual(ast.members[1].name, "b");
+			assert.ok(ast.parseErrors.length > 0);
+		});
+
+		test("unexpected keyword in call args recovers", () => {
+			const ast = parse("module m() -> (o)\n  o = foo(x, global\n  y = 1");
+			assert.strictEqual(ast.members.length, 2);
+			assert.strictEqual(ast.members[0].name, "m");
+			assert.ok(ast.parseErrors.length > 0);
+		});
+
+		test("unexpected keyword in buffer literal recovers", () => {
+			const ast = parse("module m() -> (o)\n  o = { 1, note");
+			assert.strictEqual(ast.members.length, 2);
+			assert.strictEqual(ast.members[0].name, "m");
+			assert.ok(ast.parseErrors.length > 0);
+		});
+
+		test("unexpected keyword in merge recovers", () => {
+			const ast = parse("module m() -> (o)\n  o = [a, instrument");
+			assert.strictEqual(ast.members.length, 2);
+			assert.strictEqual(ast.members[0].name, "m");
+			assert.ok(ast.parseErrors.length > 0);
+		});
+
+		test("multiple errors across multiple members still collects all", () => {
+			const ast = parse("module a() -> (o)\n  o = 1 *\nmodule b() -> (o)\n  o = 2 +\nmodule c() -> (o)\n  o = 3 -");
+			assert.strictEqual(ast.members.length, 3);
+			assert.strictEqual(ast.members[0].name, "a");
+			assert.strictEqual(ast.members[1].name, "b");
+			assert.strictEqual(ast.members[2].name, "c");
+			assert.ok(ast.parseErrors.length >= 3);
+		});
+
+		test("unexpected keyword after unary minus recovers", () => {
+			const ast = parse("module m() -> (o)\n  o = - function");
+			assert.strictEqual(ast.members.length, 2);
+			assert.strictEqual(ast.members[0].name, "m");
+			assert.ok(ast.parseErrors.length > 0);
+		});
 	});
 });

@@ -356,7 +356,7 @@ class Parser implements MidiParserContext {
 				position: { ...this.posFromToken(startTok), ...this.endPosition() },
 			};
 		}
-		const expr = this.parseExpression();
+		const expr = this.parseExpression() || { kind: "Variable", name: "", position: this.posFromToken(startTok) };
 		return {
 			pattern,
 			expression: expr,
@@ -366,23 +366,24 @@ class Parser implements MidiParserContext {
 
 	// --- Expression (precedence climbing) ---
 
-	private parseExpression(): Expression {
+	private parseExpression(): Expression | null {
 		return this.parseConditional();
 	}
 
-	private parseConditional(): Expression {
+	private parseConditional(): Expression | null {
 		const left = this.parseFor();
+		if (!left) return null;
 		if (this.peekKind() === "Question") {
 			this.consume();
-			const thenBranch = this.parseExpression();
+			const thenBranch = this.parseExpression() || { kind: "Variable", name: "", position: left.position };
 			this.expect("Colon");
-			const elseBranch = this.parseExpression();
-			return { kind: "Conditional", condition: left, thenBranch, elseBranch, position: this.posFromToken(left.position as any || { line: 0, character: 0 }) };
+			const elseBranch = this.parseExpression() || { kind: "Variable", name: "", position: left.position };
+			return { kind: "Conditional", condition: left, thenBranch, elseBranch, position: left.position };
 		}
 		return left;
 	}
 
-	private parseFor(): Expression {
+	private parseFor(): Expression | null {
 		if (this.peekKind() === "For") {
 			const startTok = this.consume();
 			const pos = this.posFromToken(startTok);
@@ -391,7 +392,7 @@ class Parser implements MidiParserContext {
 			const lookahead = this.tryPeekAhead();
 			if (lookahead.isBufferInit) {
 				// For already consumed above; lookahead restored this.pos to saved
-				const length = this.parseExpression();
+				const length = this.parseExpression() || { kind: "Variable", name: "", position: pos };
 				let width: WidthKind | undefined;
 				if (this.atKinds("Mono", "Stereo", "Generic")) {
 					const w = this.peekKind();
@@ -399,7 +400,7 @@ class Parser implements MidiParserContext {
 					width = w === "Mono" ? "Mono" : w === "Stereo" ? "Stereo" : "Generic";
 				}
 				if (this.expect("Buffer")) {
-					const body = this.parseExpression();
+					const body = this.parseExpression() || { kind: "Variable", name: "", position: pos };
 					return { kind: "BufferInit", length, width, body, position: pos };
 				}
 			}
@@ -410,7 +411,7 @@ class Parser implements MidiParserContext {
 			// For already consumed above; lookahead restored this.pos to saved
 			const varTok = this.consume();
 			this.expect("To");
-			const count = this.parseUnary();
+			const count = this.parseUnary() || { kind: "Variable", name: "", position: pos };
 			const combTok = this.consume();
 			const combinatorPosition = this.posFromToken(combTok);
 			if (!VALID_COMBINATORS.has(combTok.text)) {
@@ -419,7 +420,7 @@ class Parser implements MidiParserContext {
 				);
 			}
 			const combinator: ForCombinator = combTok.text as ForCombinator;
-			const body = this.parseExpression();
+			const body = this.parseExpression() || { kind: "Variable", name: "", position: pos };
 			return { kind: "For", variable: varTok.text, count, combinator, combinatorPosition, body, position: pos };
 		}
 		return this.parseOr();
@@ -459,34 +460,38 @@ class Parser implements MidiParserContext {
 		}
 	}
 
-	private parseOr(): Expression {
+	private parseOr(): Expression | null {
 		return this.parseBinaryLeft(this.parseXor(), ["Or"], () => this.parseXor());
 	}
 
-	private parseXor(): Expression {
+	private parseXor(): Expression | null {
 		return this.parseBinaryLeft(this.parseAnd(), ["Xor"], () => this.parseAnd());
 	}
 
-	private parseAnd(): Expression {
+	private parseAnd(): Expression | null {
 		return this.parseBinaryLeft(this.parseCompare(), ["And"], () => this.parseCompare());
 	}
 
-	private parseCompare(): Expression {
+	private parseCompare(): Expression | null {
 		return this.parseBinaryLeft(this.parseAdditive(), ["Eq", "Neq", "Less", "LessEq", "Greater", "GreaterEq"], () => this.parseAdditive());
 	}
 
-	private parseAdditive(): Expression {
+	private parseAdditive(): Expression | null {
 		return this.parseBinaryLeft(this.parseMultiplicative(), ["Plus", "Minus", "MinusPlus"], () => this.parseMultiplicative());
 	}
 
-	private parseMultiplicative(): Expression {
+	private parseMultiplicative(): Expression | null {
 		return this.parseBinaryLeft(this.parseUnary(), ["Multiply", "Divide"], () => this.parseUnary());
 	}
 
-	private parseBinaryLeft(left: Expression, ops: TokenKind[], parseRight: () => Expression): Expression {
+	private parseBinaryLeft(left: Expression | null, ops: TokenKind[], parseRight: () => Expression | null): Expression | null {
+		if (!left) return null;
 		while (this.atKinds(...ops)) {
 			const opTok = this.consume();
 			const right = parseRight();
+			if (!right) {
+				break;
+			}
 			left = {
 				kind: "Binary",
 				operator: opTok.text,
@@ -500,10 +505,11 @@ class Parser implements MidiParserContext {
 
 	// Unary: UnOp Primary | Primary with postfix chain (.Uint, .Id(args), [expr])
 
-	private parseUnary(): Expression {
+	private parseUnary(): Expression | null {
 		if (this.peekKind() === "Minus" || this.peekKind() === "Not") {
 			const opTok = this.consume();
 			const operand = this.parseUnary();
+			if (!operand) return null;
 			const op = opTok.kind === "Minus" ? "-" : "!";
 			return { kind: "Unary", operator: op, operand, position: this.posFromToken(opTok) };
 		}
@@ -512,8 +518,9 @@ class Parser implements MidiParserContext {
 	}
 
 	// Postfix chain: .Uint (tuple index), .Id(args) (method call), [expr] (buffer index)
-	private parsePostfixChain(expr: Expression): Expression {
-		let result = expr;
+	private parsePostfixChain(expr: Expression | null): Expression | null {
+		if (!expr) return null;
+		let result: Expression = expr;
 		while (this.peekKind() === "Dot" || this.peekKind() === "LSquare") {
 			if (this.peekKind() === "Dot") {
 				this.consume();
@@ -533,7 +540,7 @@ class Parser implements MidiParserContext {
 				}
 			} else if (this.peekKind() === "LSquare") {
 				this.consume();
-				const index = this.parseExpression();
+				const index = this.parseExpression() || { kind: "Variable", name: "", position: this.posFromToken(this.peek()) };
 				this.expect("RSquare");
 				result = { kind: "BufferIndex", target: result, index, position: this.posFromToken(index as any || { line: 0, character: 0 }) };
 			}
@@ -541,7 +548,7 @@ class Parser implements MidiParserContext {
 		return result;
 	}
 
-	private parsePrimary(): Expression {
+	private parsePrimary(): Expression | null {
 		const startTok = this.peek();
 		const pos = this.posFromToken(startTok);
 		const k = this.peekKind();
@@ -576,9 +583,9 @@ class Parser implements MidiParserContext {
 		// Merge: [ expr , expr ]
 		if (k === "LSquare") {
 			this.consume();
-			const left = this.parseExpression();
+			const left = this.parseExpression() || { kind: "Variable", name: "", position: pos };
 			if (this.expect("Comma")) {
-				const right = this.parseExpression();
+				const right = this.parseExpression() || { kind: "Variable", name: "", position: pos };
 				this.expect("RSquare");
 				return { kind: "Merge", left, right, position: pos };
 			}
@@ -600,14 +607,13 @@ class Parser implements MidiParserContext {
 			return this.parseCallOrVar();
 		}
 
-		// Fallback — consume unknown token or EOF
+		// Fallback — do NOT consume, signal failure
 		if (k !== "Eof") {
 			this.error(`unexpected token '${startTok.text}'`);
-			this.consume();
-			return { kind: "Variable", name: "", position: pos };
+			return null;
 		}
 		this.error("unexpected end of input while parsing expression");
-		return { kind: "Variable", name: "", position: pos };
+		return null;
 	}
 
 	private parseCallOrVar(): Expression {
