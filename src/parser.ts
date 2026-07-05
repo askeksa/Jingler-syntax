@@ -460,33 +460,33 @@ class Parser implements MidiParserContext {
 	}
 
 	private parseOr(): Expression {
-		return this.parseBinaryLeft(this.parseXor(), ["Or"]);
+		return this.parseBinaryLeft(this.parseXor(), ["Or"], () => this.parseXor());
 	}
 
 	private parseXor(): Expression {
-		return this.parseBinaryLeft(this.parseAnd(), ["Xor"]);
+		return this.parseBinaryLeft(this.parseAnd(), ["Xor"], () => this.parseAnd());
 	}
 
 	private parseAnd(): Expression {
-		return this.parseBinaryLeft(this.parseCompare(), ["And"]);
+		return this.parseBinaryLeft(this.parseCompare(), ["And"], () => this.parseCompare());
 	}
 
 	private parseCompare(): Expression {
-		return this.parseBinaryLeft(this.parseAdditive(), ["Eq", "Neq", "Less", "LessEq", "Greater", "GreaterEq"]);
+		return this.parseBinaryLeft(this.parseAdditive(), ["Eq", "Neq", "Less", "LessEq", "Greater", "GreaterEq"], () => this.parseAdditive());
 	}
 
 	private parseAdditive(): Expression {
-		return this.parseBinaryLeft(this.parseMultiplicative(), ["Plus", "Minus", "MinusPlus"]);
+		return this.parseBinaryLeft(this.parseMultiplicative(), ["Plus", "Minus", "MinusPlus"], () => this.parseMultiplicative());
 	}
 
 	private parseMultiplicative(): Expression {
-		return this.parseBinaryLeft(this.parseUnary(), ["Multiply", "Divide"]);
+		return this.parseBinaryLeft(this.parseUnary(), ["Multiply", "Divide"], () => this.parseUnary());
 	}
 
-	private parseBinaryLeft(left: Expression, ops: TokenKind[]): Expression {
+	private parseBinaryLeft(left: Expression, ops: TokenKind[], parseRight: () => Expression): Expression {
 		while (this.atKinds(...ops)) {
 			const opTok = this.consume();
-			const right = this.parseUnary();
+			const right = parseRight();
 			left = {
 				kind: "Binary",
 				operator: opTok.text,

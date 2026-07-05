@@ -10,6 +10,7 @@ import {
 } from "./ast";
 import { walkExpression, isCellOrDelay, ExpressionVisitor } from "./expression_walk";
 import { BUILT_INS } from "./hover";
+import { channel } from "./logging";
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -318,7 +319,6 @@ function diagnosticsFromParseErrors(ast: Program): vscode.Diagnostic[] {
 async function diagnosticsFromMember(
 	doc: ZingDocument,
 	member: Member,
-	allMemberNames: Map<string, number>
 ): Promise<vscode.Diagnostic[]> {
 	const diagnostics: vscode.Diagnostic[] = [];
 	const { definitions, forLoopVars } = collectMemberDefinitions(member, doc.ast.parameters);
@@ -363,9 +363,10 @@ async function diagnosticsFromMember(
 				continue;
 			}
 
-			// Check forward reference (member-local + cross-member)
-			const defLine = definitions.get(ref.name) ?? allMemberNames.get(ref.name);
-			if (defLine != undefined && ref.position.line < defLine && !allowedFwdRefs.has(ref.name)) {
+			// Check forward reference — only for local variables within this member.
+			// Member calls can reference each other in any order (real compiler: lookup_member has no fwd check).
+			const localDefLine = definitions.get(ref.name);
+			if (localDefLine != undefined && ref.position.line < localDefLine && !allowedFwdRefs.has(ref.name)) {
 				diagnostics.push(errorDiagnostic(
 					refRange(ref),
 					`'${ref.name}': Reference to a later variable is only allowed in a cell or delay.`
@@ -393,12 +394,8 @@ async function diagnosticsFromMember(
 
 async function diagnosticsFromUnresolved(doc: ZingDocument): Promise<vscode.Diagnostic[]> {
 	const diagnostics: vscode.Diagnostic[] = [];
-	const allMemberNames = new Map<string, number>();
-	for (const m of doc.ast.members) {
-		allMemberNames.set(m.name, m.position.line);
-	}
 	for (const member of doc.ast.members) {
-		diagnostics.push(...await diagnosticsFromMember(doc, member, allMemberNames));
+		diagnostics.push(...await diagnosticsFromMember(doc, member));
 	}
 	return diagnostics;
 }
@@ -836,6 +833,17 @@ export async function computeDiagnostics(document: vscode.TextDocument): Promise
 		diagnosticsFromIncludes(doc.ast, document.uri),
 	]);
 
+	logDiagnosticCounts({
+		parse: parseDiagnostics.length,
+		duplicates: duplicateDiagnostics.length,
+		context: contextDiagnostics.length,
+		argCount: argCountDiagnostics.length,
+		callContext: callContextDiagnostics.length,
+		unresolved: unresolvedDiagnostics.length,
+		bytecode: bytecodeDiagnostics.length,
+		includes: includeDiagnostics.length,
+	});
+
 	return [
 		...parseDiagnostics,
 		...duplicateDiagnostics,
@@ -846,6 +854,15 @@ export async function computeDiagnostics(document: vscode.TextDocument): Promise
 		...bytecodeDiagnostics,
 		...includeDiagnostics,
 	];
+}
+
+function logDiagnosticCounts(counts: Record<string, number>): void {
+	const parts = Object.entries(counts)
+		.filter(([_, n]) => n > 0)
+		.map(([k, n]) => `${n} ${k}`);
+	if (parts.length) {
+		channel.appendLine(`[diagnostics] ${parts.join(", ")}`);
+	}
 }
 
 /* ------------------------------------------------------------------ */

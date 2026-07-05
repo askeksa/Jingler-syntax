@@ -5,5 +5,8 @@
 node_modules/
 src/
 out/*.map
-vsc-extension-quickstart.md
+out/test/
+test-workspace/
+*.md
+!README.md
 .justfile

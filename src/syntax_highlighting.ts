@@ -7,6 +7,7 @@ import {
 	MidiMapping, MidiNoteRange,
 } from "./ast";
 import { walkExpression, ExpressionVisitor } from "./expression_walk";
+import { channel } from "./logging";
 
 /* ------------------------------------------------------------------ */
 /*  Legend — custom types mapped to TextMate scopes via               */
@@ -286,8 +287,7 @@ export class SemanticTokensProvider implements vscode.DocumentSemanticTokensProv
 
 			return new vscode.SemanticTokens(tokens);
 		} catch (err) {
-			// eslint-disable-next-line no-console
-			console.error("SemanticTokensProvider error:", err);
+			channel.appendLine(`[semantic] error: ${err}`);
 			return new vscode.SemanticTokens(new Uint32Array(0));
 		}
 	}

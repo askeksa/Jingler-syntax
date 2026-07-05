@@ -3,6 +3,7 @@ import { semanticLegend } from "../syntax_highlighting";
 import { Tokenizer } from "../tokenizer";
 import { parseTokens } from "../parser";
 import { filterTokens } from "../tokenizer";
+import { Expression } from "../ast";
 
 suite("Syntax Highlighting", () => {
 	suite("tokenizer defaults", () => {
@@ -112,6 +113,112 @@ suite("Syntax Highlighting", () => {
 
 		test("modifier count matches indices", () => {
 			assert.strictEqual(semanticLegend.tokenModifiers.length, 2);
+		});
+	});
+
+	suite("expression operator precedence", () => {
+		function parseExpr(body: string): Expression {
+			const src = `function f() -> (out)\n  ${body}`;
+			const tokens = new Tokenizer(src).tokenize();
+			const ast = parseTokens(tokens);
+			assert.strictEqual(ast.members.length, 1, "should parse one member");
+			assert.strictEqual(ast.members[0].body.length, 1, "should parse one statement");
+			return ast.members[0].body[0].expression;
+		}
+
+		test("multiplication binds tighter than addition: a + b * c", () => {
+			const expr = parseExpr("out = a + b * c");
+			assert.strictEqual(expr.kind, "Binary");
+			assert.strictEqual((expr as any).operator, "+");
+			assert.strictEqual((expr as any).left.kind, "Variable");
+			assert.strictEqual((expr as any).left.name, "a");
+			assert.strictEqual((expr as any).right.kind, "Binary");
+			assert.strictEqual((expr as any).right.operator, "*");
+			assert.strictEqual((expr as any).right.left.name, "b");
+			assert.strictEqual((expr as any).right.right.name, "c");
+		});
+
+		test("addition with parenthesized subtraction and multiplication: a + (b - a) * t.clamp01", () => {
+			const expr = parseExpr("out = a + (b - a) * t.clamp01");
+			assert.strictEqual(expr.kind, "Binary");
+			assert.strictEqual((expr as any).operator, "+");
+			assert.strictEqual((expr as any).left.kind, "Variable");
+			assert.strictEqual((expr as any).left.name, "a");
+			const right = (expr as any).right;
+			assert.strictEqual(right.kind, "Binary");
+			assert.strictEqual(right.operator, "*");
+			assert.strictEqual(right.left.kind, "Tuple");
+			const call = right.right;
+			assert.strictEqual(call.kind, "Call");
+			assert.strictEqual(call.name, "clamp01");
+			assert.strictEqual(call.arguments[0].kind, "Variable");
+			assert.strictEqual(call.arguments[0].name, "t");
+		});
+
+		test("left associativity of addition: a + b + c", () => {
+			const expr = parseExpr("out = a + b + c");
+			assert.strictEqual(expr.kind, "Binary");
+			assert.strictEqual((expr as any).operator, "+");
+			assert.strictEqual((expr as any).left.kind, "Binary");
+			assert.strictEqual((expr as any).left.operator, "+");
+			assert.strictEqual((expr as any).left.left.name, "a");
+			assert.strictEqual((expr as any).left.right.name, "b");
+			assert.strictEqual((expr as any).right.name, "c");
+		});
+
+		test("multiplication binds tighter than subtraction: a - b * c", () => {
+			const expr = parseExpr("out = a - b * c");
+			assert.strictEqual(expr.kind, "Binary");
+			assert.strictEqual((expr as any).operator, "-");
+			assert.strictEqual((expr as any).left.name, "a");
+			assert.strictEqual((expr as any).right.kind, "Binary");
+			assert.strictEqual((expr as any).right.operator, "*");
+		});
+
+		test("division binds tighter than addition: a + b / c", () => {
+			const expr = parseExpr("out = a + b / c");
+			assert.strictEqual(expr.kind, "Binary");
+			assert.strictEqual((expr as any).operator, "+");
+			assert.strictEqual((expr as any).right.kind, "Binary");
+			assert.strictEqual((expr as any).right.operator, "/");
+		});
+
+		test("comparison binds tighter than logical and: a == b & c > d", () => {
+			const expr = parseExpr("out = a == b & c > d");
+			assert.strictEqual(expr.kind, "Binary");
+			assert.strictEqual((expr as any).operator, "&");
+			assert.strictEqual((expr as any).left.kind, "Binary");
+			assert.strictEqual((expr as any).left.operator, "==");
+			assert.strictEqual((expr as any).right.kind, "Binary");
+			assert.strictEqual((expr as any).right.operator, ">");
+		});
+
+		test("conditional has lowest precedence: a ? b + c : d * e", () => {
+			const expr = parseExpr("out = a ? b + c : d * e");
+			assert.strictEqual(expr.kind, "Conditional");
+			assert.strictEqual((expr as any).thenBranch.kind, "Binary");
+			assert.strictEqual((expr as any).thenBranch.operator, "+");
+			assert.strictEqual((expr as any).elseBranch.kind, "Binary");
+			assert.strictEqual((expr as any).elseBranch.operator, "*");
+		});
+
+		test("unary minus binds tighter than multiplication: -a * b", () => {
+			const expr = parseExpr("out = -a * b");
+			assert.strictEqual(expr.kind, "Binary");
+			assert.strictEqual((expr as any).operator, "*");
+			assert.strictEqual((expr as any).left.kind, "Unary");
+			assert.strictEqual((expr as any).left.operator, "-");
+			assert.strictEqual((expr as any).right.name, "b");
+		});
+
+		test("complex mixed precedence: a + (b - a) * t.clamp01 does not break subsequent members", () => {
+			const src = `function lerp(a, b, t) -> (out)\n  out = a + (b - a) * t.clamp01\n\nfunction mod1(a) -> (b)\n  b = a - floor(a)`;
+			const tokens = new Tokenizer(src).tokenize();
+			const ast = parseTokens(tokens);
+			assert.strictEqual(ast.members.length, 2, "both functions must be parsed");
+			assert.strictEqual(ast.members[0].name, "lerp");
+			assert.strictEqual(ast.members[1].name, "mod1");
+			assert.strictEqual(ast.parseErrors.length, 0, "no parse errors");
 		});
 	});
 });

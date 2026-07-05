@@ -1,0 +1,96 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Zing",
+	"scopeName": "source.zing",
+	"patterns": [
+		{
+			"include": "#comment"
+		},
+		{
+			"include": "#string"
+		},
+		{
+			"include": "#keyword"
+		},
+		{
+			"include": "#number"
+		},
+		{
+			"include": "#operator"
+		}
+	],
+	"repository": {
+		"comment": {
+			"patterns": [
+				{
+					"name": "comment.line.number-sign.zing",
+					"match": "(?<![A-G])#.*$"
+				}
+			]
+		},
+		"string": {
+			"name": "string.quoted.double.zing",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.zing",
+					"match": "\\\\."
+				}
+			]
+		},
+		"keyword": {
+			"patterns": [
+				{
+					"name": "keyword.control.zing",
+					"match": "\\b(for|to)\\b"
+				},
+				{
+					"name": "storage.type.zing.toplevel",
+					"match": "\\b(include|parameter|buffer|module|function|instrument)\\b"
+				},
+				{
+					"name": "storage.modifier.zing.toplevel",
+					"match": "\\b(global|note)\\b"
+				},
+				{
+					"name": "storage.modifier.zing.scope",
+					"match": "\\b(static|dynamic)\\b"
+				},
+				{
+					"name": "storage.type.zing.width",
+					"match": "\\b(mono|stereo|generic)\\b"
+				},
+				{
+					"name": "storage.type.zing.type",
+					"match": "\\b(number|bool)\\b"
+				}
+			]
+		},
+		"number": {
+			"patterns": [
+				{
+					"name": "constant.numeric.zing",
+					"match": "\\b0[xX][0-9a-fA-F]+(\\.[0-9a-fA-F]+)?\\b"
+				},
+				{
+					"name": "constant.numeric.zing",
+					"match": "\\b\\d+\\.\\d+\\b"
+				},
+				{
+					"name": "constant.numeric.zing",
+					"match": "\\b\\d+\\b"
+				},
+				{
+					"name": "constant.language.zing",
+					"match": "\\b(true|false|inf)\\b"
+				}
+			]
+		},
+		"operator": {
+			"name": "keyword.operator.zing",
+			"match": "->|==|!=|<=|>=|::|\\.\\.|[+\\-*/=<>\\|^&?:.,!@]"
+		}
+	},
+	"fileTypes": ["zing"]
+}

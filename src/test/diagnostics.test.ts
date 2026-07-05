@@ -78,7 +78,7 @@ suite("Diagnostics Tests", () => {
 		assert.ok(messages.some(m => m.includes("'x': Reference to a later variable")), `expected x forward reference, got: ${messages.join(", ")}`);
 	});
 
-	test("forward reference to member is flagged", async () => {
+	test("forward reference to member is allowed", async () => {
 		const text = `module main -> (out)
   out = helper(1)
 
@@ -86,8 +86,19 @@ module helper (x) -> (y)
   y = x
 `;
 		const diags = await getDiagnostics(text);
-		const messages = diagMessages(diags);
-		assert.ok(messages.some(m => m.includes("'helper': Reference to a later variable")), `expected helper forward reference, got: ${messages.join(", ")}`);
+		assert.strictEqual(diags.length, 0, `expected no diagnostics, got: ${diagMessages(diags).join(", ")}`);
+	});
+
+	test("method call to later member is allowed", async () => {
+		const text = `function ssin(in) -> (out)
+  angle = in.phase2angle
+  out = [sin(angle.left), sin(angle.right)]
+
+function phase2angle(phase) -> (angle)
+  angle = phase * 6.283185307179586
+`;
+		const diags = await getDiagnostics(text);
+		assert.strictEqual(diags.length, 0, `expected no diagnostics, got: ${diagMessages(diags).join(", ")}`);
 	});
 
 	test("forward reference inside cell is allowed", async () => {

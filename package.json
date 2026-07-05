@@ -5,9 +5,9 @@
     "description": "Syntax highlighting for the Zing language used in Jingler",
     "icon": "",
     "repository": "https://github.com/askeksa/jingler-syntax",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "engines": {
-        "vscode": "^1.75.0"
+        "vscode": "^1.50.0"
     },
     "activationEvents": [
         "onLanguage:zing"
@@ -19,15 +19,16 @@
         "lint": "eslint \"src/**/*.ts\"",
         "watch": "tsc -watch -p ./",
         "pretest": "npm run compile",
-        "test": "node out/test/runTest.js"
+        "test": "node out/test/runMocha.js"
     },
     "devDependencies": {
         "@types/mocha": "^10.0.10",
         "@types/node": "^18",
-        "@types/vscode": "^1.75.0",
+        "@types/vscode": "^1.50.0",
         "@typescript-eslint/eslint-plugin": "^7.18.0",
         "@typescript-eslint/parser": "^7.18.0",
-        "@vscode/test-electron": "^2.3.0",
+        
+        "@vscode/vsce": "^2.18.0",
         "eslint": "^8.26.0",
         "glob": "^8.1.0",
         "mocha": "^10.2.0",
@@ -47,6 +48,13 @@
                     ".zing"
                 ],
                 "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "zing",
+                "scopeName": "source.zing",
+                "path": "./syntaxes/zing.tmLanguage.json"
             }
         ],
         "semanticTokenScopes": [
@@ -77,12 +85,5 @@
                 }
             }
         ]
-    },
-    "dependencies": {
-        "@vscode/vsce": "^2.18.0"
-    },
-    "allowScripts": {
-        "@vscode/vsce-sign@2.0.9": true,
-        "keytar@7.9.0": true
     }
 }
