@@ -476,6 +476,25 @@ module main -> (out)
 		assert.strictEqual(diags.length, 0);
 	});
 
+	test("output sharing name with input is not a duplicate (passthrough)", async () => {
+		const text = `function lowp(lpf_out, bpf_out, hpf_out) -> lpf_out
+`;
+		const diags = await getDiagnostics(text);
+		assert.strictEqual(diags.length, 0, `expected no diagnostics, got: ${diagMessages(diags).join(", ")}`);
+	});
+
+	test("output sharing name with input and assigned in body is not a duplicate", async () => {
+		const text = `module filter(input, cutoff, dampen) -> (lpf_out, bpf_out, hpf_out)
+  lpf = cell(lpf_out, 0)
+  bpf = cell(bpf_out, 0)
+  lpf_out = lpf + bpf * cutoff
+  hpf_out = input - lpf_out - bpf * dampen
+  bpf_out = bpf + hpf_out * cutoff
+`;
+		const diags = await getDiagnostics(text);
+		assert.strictEqual(diags.length, 0, `expected no diagnostics, got: ${diagMessages(diags).join(", ")}`);
+	});
+
 	// --- Context errors ---
 
 	test("'main' must be a global module", async () => {

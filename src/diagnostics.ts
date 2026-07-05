@@ -744,7 +744,6 @@ function diagnosticsFromMemberDuplicates(member: Member, document: vscode.TextDo
 	const diagnostics: vscode.Diagnostic[] = [];
 	const names = new Map<string, IdentRef>();
 	const midiNames = new Map<string, IdentRef>();
-	const outputNames = new Set<string>();
 
 	for (const midi of member.midiParams) {
 		if (midi.name === "_") continue;
@@ -752,20 +751,25 @@ function diagnosticsFromMemberDuplicates(member: Member, document: vscode.TextDo
 			`Duplicate MIDI input '${midi.name}'.`, document);
 	}
 
+	const inputNames = new Set<string>();
 	for (const item of member.inputs) {
+		inputNames.add(item.name);
 		checkDuplicate(diagnostics, names, item.name, item.position,
 			`Duplicate definition of '${item.name}'.`, document);
 	}
 
+	// Outputs are NOT inserted into the variables map by the real compiler (names.rs).
+	// They can only duplicate each other. An output sharing a name with an input
+	// is a valid passthrough pattern (e.g. `function lowp(x) -> x`).
+	const outputNames = new Map<string, IdentRef>();
 	for (const item of member.outputs) {
-		outputNames.add(item.name);
-		checkDuplicate(diagnostics, names, item.name, item.position,
+		if (inputNames.has(item.name)) continue;
+		checkDuplicate(diagnostics, outputNames, item.name, item.position,
 			`Duplicate definition of '${item.name}'.`, document);
 	}
 
 	for (const stmt of member.body) {
 		for (const item of stmt.pattern) {
-			if (outputNames.has(item.name)) continue;
 			checkDuplicate(diagnostics, names, item.name, item.position,
 				`Duplicate definition of '${item.name}'.`, document);
 		}
