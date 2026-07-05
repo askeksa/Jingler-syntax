@@ -1,10 +1,5 @@
 ### 2.0.1
 
-* Fix parens in comment coloring/
-* Operator precedence was wrong, breaking coloring.
-
-### 2.0.0
-
 * Semantic syntax coloring.
 * Underline errors and warnings, errors added to PROBLEMS tab.
 * Mouse hover popups, ctrl-hover popups.
