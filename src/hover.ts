@@ -18,6 +18,7 @@ import {
 	findSymbolInIncludes,
 	LookupResult
 } from "./definitions";
+import { channel } from "./logging";
 
 /* ------------------------------------------------------------------ */
 /*  Hover target                                                       */
@@ -273,32 +274,37 @@ function buildHoverFromLookupResult(result: LookupResult): vscode.Hover | null {
 
 export let hoverProvider: vscode.HoverProvider = {
 	async provideHover(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken): Promise<vscode.Hover | null> {
-		const line = document.lineAt(position.line).text;
-		const symbol = symbolAt(line, position.character);
-		if (!symbol) return null;
+		try {
+			const line = document.lineAt(position.line).text;
+			const symbol = symbolAt(line, position.character);
+			if (!symbol) return null;
 
-		// Check built-ins first
-		const builtIn = buildBuiltInHover(symbol);
-		if (builtIn) {
-			return new vscode.Hover(new vscode.MarkdownString(builtIn));
-		}
-
-		// Look up in document
-		const doc = parseZingDocument(document.getText(), document.uri);
-		const target = findAstNode(doc, symbol, position.line);
-		if (target) {
-			return buildHoverFromTarget(target);
-		}
-
-		// Not found in current doc — check includes
-		if (doc.ast.includes.length > 0) {
-			const incPaths = doc.ast.includes.map(i => i.path);
-			const incResult = await findSymbolInIncludes(incPaths, document.uri, symbol);
-			if (incResult) {
-				return buildHoverFromLookupResult(incResult);
+			// Check built-ins first
+			const builtIn = buildBuiltInHover(symbol);
+			if (builtIn) {
+				return new vscode.Hover(new vscode.MarkdownString(builtIn));
 			}
-		}
 
-		return null;
+			// Look up in document
+			const doc = parseZingDocument(document.getText(), document.uri);
+			const target = findAstNode(doc, symbol, position.line);
+			if (target) {
+				return buildHoverFromTarget(target);
+			}
+
+			// Not found in current doc — check includes
+			if (doc.ast.includes.length > 0) {
+				const incPaths = doc.ast.includes.map(i => i.path);
+				const incResult = await findSymbolInIncludes(incPaths, document.uri, symbol);
+				if (incResult) {
+					return buildHoverFromLookupResult(incResult);
+				}
+			}
+
+			return null;
+		} catch (err) {
+			channel.appendLine(`[hover] failed for ${document.uri.fsPath}: ${err}`);
+			return null;
+		}
 	}
 };

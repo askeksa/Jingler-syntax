@@ -10,7 +10,6 @@ import {
 } from "./ast";
 import { walkExpression, isCellOrDelay, ExpressionVisitor } from "./expression_walk";
 import { BUILT_INS } from "./hover";
-import { channel } from "./logging";
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -837,17 +836,6 @@ export async function computeDiagnostics(document: vscode.TextDocument): Promise
 		diagnosticsFromIncludes(doc.ast, document.uri),
 	]);
 
-	logDiagnosticCounts({
-		parse: parseDiagnostics.length,
-		duplicates: duplicateDiagnostics.length,
-		context: contextDiagnostics.length,
-		argCount: argCountDiagnostics.length,
-		callContext: callContextDiagnostics.length,
-		unresolved: unresolvedDiagnostics.length,
-		bytecode: bytecodeDiagnostics.length,
-		includes: includeDiagnostics.length,
-	});
-
 	return [
 		...parseDiagnostics,
 		...duplicateDiagnostics,
@@ -858,15 +846,6 @@ export async function computeDiagnostics(document: vscode.TextDocument): Promise
 		...bytecodeDiagnostics,
 		...includeDiagnostics,
 	];
-}
-
-function logDiagnosticCounts(counts: Record<string, number>): void {
-	const parts = Object.entries(counts)
-		.filter(([_, n]) => n > 0)
-		.map(([k, n]) => `${n} ${k}`);
-	if (parts.length) {
-		channel.appendLine(`[diagnostics] ${parts.join(", ")}`);
-	}
 }
 
 /* ------------------------------------------------------------------ */

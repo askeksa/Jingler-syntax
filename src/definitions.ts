@@ -8,6 +8,7 @@ import {
 	ZingDocument
 } from "./document_symbols";
 import { Member, Parameter } from "./ast";
+import { channel } from "./logging";
 
 /* ------------------------------------------------------------------ */
 /*  Shared symbol lookup (used by both definitions and hover)          */
@@ -191,20 +192,25 @@ async function findMemberOrParamInIncludesRecursive(
 
 export let definitionProvider: vscode.DefinitionProvider = {
 	async provideDefinition(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken): Promise<vscode.Definition | vscode.DefinitionLink[] | null> {
-		let line = document.lineAt(position.line).text;
-		let symbol = symbolAt(line, position.character);
+		try {
+			let line = document.lineAt(position.line).text;
+			let symbol = symbolAt(line, position.character);
 
-		if (symbol != undefined) {
-			const sym = await findSymbolInDocument(parseZingDocument(document.getText(), document.uri), symbol, position.line);
-			if (sym != undefined) {
-				return [{
-					targetUri: sym.uri,
-					targetRange: sym.fullRange,
-					targetSelectionRange: sym.nameRange,
-				}];
+			if (symbol != undefined) {
+				const sym = await findSymbolInDocument(parseZingDocument(document.getText(), document.uri), symbol, position.line);
+				if (sym != undefined) {
+					return [{
+						targetUri: sym.uri,
+						targetRange: sym.fullRange,
+						targetSelectionRange: sym.nameRange,
+					}];
+				}
 			}
-		}
 
-		return null;
+			return null;
+		} catch (err) {
+			channel.appendLine(`[definition] failed for ${document.uri.fsPath}: ${err}`);
+			return null;
+		}
 	}
 };

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { Tokenizer } from "./tokenizer";
 import { parseTokens } from "./parser";
 import { Program, Member, Parameter, Statement, PatternItem } from "./ast";
+import { channel } from "./logging";
 
 export class ZingDocument {
 	symbols: vscode.SymbolInformation[];
@@ -187,6 +188,11 @@ export function documentSymbols(document: vscode.TextDocument): vscode.SymbolInf
 
 export let documentSymbolProvider: vscode.DocumentSymbolProvider = {
 	provideDocumentSymbols(document: vscode.TextDocument, _token: vscode.CancellationToken): vscode.ProviderResult<vscode.SymbolInformation[] | vscode.DocumentSymbol[]> {
-		return documentSymbols(document);
+		try {
+			return documentSymbols(document);
+		} catch (err) {
+			channel.appendLine(`[symbols] failed for ${document.uri.fsPath}: ${err}`);
+			return [];
+		}
 	}
 }
