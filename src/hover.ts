@@ -122,39 +122,41 @@ export interface BuiltInInfo {
 	args: number;
 	context: ContextKind;
 	memberKind: MemberKind;
+	params?: string[];
+	outputDesc?: string;
 }
 
 export const BUILT_INS: Record<string, BuiltInInfo> = {
-	"atan2": { kind: "function", signature: "atan2(x: mono, y: mono) → mono", description: "Two-argument arctangent.", args: 2, context: "Universal", memberKind: "Function" },
-	"ceil": { kind: "function", signature: "ceil(x: generic) → generic", description: "Ceiling.", args: 1, context: "Universal", memberKind: "Function" },
-	"cos": { kind: "function", signature: "cos(x: mono) → mono", description: "Cosine.", args: 1, context: "Universal", memberKind: "Function" },
-	"exp2": { kind: "function", signature: "exp2(x: mono) → mono", description: "Power of 2.", args: 1, context: "Universal", memberKind: "Function" },
-	"floor": { kind: "function", signature: "floor(x: generic) → generic", description: "Floor.", args: 1, context: "Universal", memberKind: "Function" },
-	"gate": { kind: "function", signature: "gate() → mono bool", description: "Reads the gate property of the current note. Note context only.", args: 0, context: "Note", memberKind: "Function" },
-	"gmdls": { kind: "function", signature: "gmdls(program: mono, bank: mono) → mono", description: "GM DLS sample mapping.", args: 2, context: "Universal", memberKind: "Function" },
-	"index": { kind: "function", signature: "index(b: generic buffer) → mono", description: "Buffer indexing.", args: 1, context: "Universal", memberKind: "Function" },
-	"key": { kind: "function", signature: "key() → mono", description: "Reads the key property of the current note. Note context only.", args: 0, context: "Note", memberKind: "Function" },
-	"left": { kind: "function", signature: "left(x: stereo) → mono", description: "Extracts the left channel from a stereo signal.", args: 1, context: "Universal", memberKind: "Function" },
-	"length": { kind: "function", signature: "length(b: generic buffer) → mono", description: "Buffer length.", args: 1, context: "Universal", memberKind: "Function" },
-	"log2": { kind: "function", signature: "log2(x: mono) → mono", description: "Base-2 logarithm.", args: 1, context: "Universal", memberKind: "Function" },
-	"max": { kind: "function", signature: "max(a: generic, b: generic) → generic", description: "Maximum of two values.", args: 2, context: "Universal", memberKind: "Function" },
-	"min": { kind: "function", signature: "min(a: generic, b: generic) → generic", description: "Minimum of two values.", args: 2, context: "Universal", memberKind: "Function" },
-	"random": { kind: "function", signature: "random(min: mono, max: mono) → mono", description: "Random value in range.", args: 2, context: "Universal", memberKind: "Function" },
-	"right": { kind: "function", signature: "right(x: stereo) → mono", description: "Extracts the right channel from a stereo signal.", args: 1, context: "Universal", memberKind: "Function" },
-	"round": { kind: "function", signature: "round(x: generic) → generic", description: "Round to nearest integer.", args: 1, context: "Universal", memberKind: "Function" },
-	"samplerate": { kind: "function", signature: "samplerate() → mono", description: "Current audio sample rate in Hz.", args: 0, context: "Universal", memberKind: "Function" },
-	"sin": { kind: "function", signature: "sin(x: mono) → mono", description: "Sine.", args: 1, context: "Universal", memberKind: "Function" },
-	"sincos": { kind: "function", signature: "sincos(x: mono) → (mono, mono)", description: "Sine and cosine.", args: 1, context: "Universal", memberKind: "Function" },
-	"sqrt": { kind: "function", signature: "sqrt(x: generic) → generic", description: "Square root.", args: 1, context: "Universal", memberKind: "Function" },
-	"tan": { kind: "function", signature: "tan(x: mono) → mono", description: "Tangent.", args: 1, context: "Universal", memberKind: "Function" },
-	"trunc": { kind: "function", signature: "trunc(x: generic) → generic", description: "Truncate toward zero.", args: 1, context: "Universal", memberKind: "Function" },
-	"velocity": { kind: "function", signature: "velocity() → mono", description: "Reads the velocity property of the current note. Note context only.", args: 0, context: "Note", memberKind: "Function" },
-	"center": { kind: "function", signature: "center(x: stereo) → mono", description: "Average of left and right channels.", args: 1, context: "Universal", memberKind: "Function" },
-	"swap": { kind: "function", signature: "swap(x: stereo) → stereo", description: "Exchange left and right channels.", args: 1, context: "Universal", memberKind: "Function" },
-	"pow": { kind: "function", signature: "pow(base: mono, exp: mono) → mono", description: "Base raised to exponent.", args: 2, context: "Universal", memberKind: "Function" },
-	"cell": { kind: "module", signature: "cell(value: dynamic generic typeless, init: static generic typeless) → dynamic generic typeless", description: "Stateful value. Maintains a value across samples.", args: 2, context: "Universal", memberKind: "Module" },
-	"delay": { kind: "module", signature: "delay(value: dynamic generic typeless, samples: static mono number) → dynamic generic typeless", description: "Fixed delay line. Delay amount must be static.", args: 2, context: "Universal", memberKind: "Module" },
-	"dyndelay": { kind: "module", signature: "dyndelay(value: dynamic generic typeless, samples: dynamic mono number, max: static mono number) → dynamic generic typeless", description: "Variable delay line. Takes dynamic delay amount and static maximum.", args: 3, context: "Universal", memberKind: "Module" },
+	"atan2": { kind: "function", signature: "atan2(x: mono, y: mono) → mono", description: "Two-argument arctangent.", args: 2, context: "Universal", memberKind: "Function", params: ["y coordinate", "x coordinate"], outputDesc: "angle in radians" },
+	"ceil": { kind: "function", signature: "ceil(x: generic) → generic", description: "Ceiling.", args: 1, context: "Universal", memberKind: "Function", params: ["value to round up"], outputDesc: "smallest integer ≥ x" },
+	"cos": { kind: "function", signature: "cos(x: mono) → mono", description: "Cosine.", args: 1, context: "Universal", memberKind: "Function", params: ["angle in radians"], outputDesc: "cosine value" },
+	"exp2": { kind: "function", signature: "exp2(x: mono) → mono", description: "Power of 2.", args: 1, context: "Universal", memberKind: "Function", params: ["exponent"], outputDesc: "2 raised to the power of x" },
+	"floor": { kind: "function", signature: "floor(x: generic) → generic", description: "Floor.", args: 1, context: "Universal", memberKind: "Function", params: ["value to round down"], outputDesc: "largest integer ≤ x" },
+	"gate": { kind: "function", signature: "gate() → mono bool", description: "Reads the gate property of the current note. Note context only.", args: 0, context: "Note", memberKind: "Function", outputDesc: "true while note is held, false when released" },
+	"gmdls": { kind: "function", signature: "gmdls(program: mono, bank: mono) → mono", description: "GM DLS sample mapping.", args: 2, context: "Universal", memberKind: "Function", params: ["GM program number (1–128)", "GM bank number (0–127)"], outputDesc: "mapped MIDI note number" },
+	"index": { kind: "function", signature: "index(b: generic buffer) → mono", description: "Buffer indexing.", args: 1, context: "Universal", memberKind: "Function", params: ["buffer to index"], outputDesc: "current sample position within the buffer" },
+	"key": { kind: "function", signature: "key() → mono", description: "Reads the key property of the current note. Note context only.", args: 0, context: "Note", memberKind: "Function", outputDesc: "MIDI note number (0–127)" },
+	"left": { kind: "function", signature: "left(x: stereo) → mono", description: "Extracts the left channel from a stereo signal.", args: 1, context: "Universal", memberKind: "Function", params: ["stereo signal"], outputDesc: "left channel as mono" },
+	"length": { kind: "function", signature: "length(b: generic buffer) → mono", description: "Buffer length.", args: 1, context: "Universal", memberKind: "Function", params: ["buffer"], outputDesc: "number of samples in the buffer" },
+	"log2": { kind: "function", signature: "log2(x: mono) → mono", description: "Base-2 logarithm.", args: 1, context: "Universal", memberKind: "Function", params: ["value"], outputDesc: "log base 2 of x" },
+	"max": { kind: "function", signature: "max(a: generic, b: generic) → generic", description: "Maximum of two values.", args: 2, context: "Universal", memberKind: "Function", params: ["first value", "second value"], outputDesc: "the larger of a and b" },
+	"min": { kind: "function", signature: "min(a: generic, b: generic) → generic", description: "Minimum of two values.", args: 2, context: "Universal", memberKind: "Function", params: ["first value", "second value"], outputDesc: "the smaller of a and b" },
+	"random": { kind: "function", signature: "random(min: mono, max: mono) → mono", description: "Random value in range.", args: 2, context: "Universal", memberKind: "Function", params: ["lower bound", "upper bound"], outputDesc: "random value between min and max" },
+	"right": { kind: "function", signature: "right(x: stereo) → mono", description: "Extracts the right channel from a stereo signal.", args: 1, context: "Universal", memberKind: "Function", params: ["stereo signal"], outputDesc: "right channel as mono" },
+	"round": { kind: "function", signature: "round(x: generic) → generic", description: "Round to nearest integer.", args: 1, context: "Universal", memberKind: "Function", params: ["value to round"], outputDesc: "nearest integer to x" },
+	"samplerate": { kind: "function", signature: "samplerate() → mono", description: "Current audio sample rate in Hz.", args: 0, context: "Universal", memberKind: "Function", outputDesc: "sample rate (e.g., 44100)" },
+	"sin": { kind: "function", signature: "sin(x: mono) → mono", description: "Sine.", args: 1, context: "Universal", memberKind: "Function", params: ["angle in radians"], outputDesc: "sine value" },
+	"sincos": { kind: "function", signature: "sincos(x: mono) → (mono, mono)", description: "Sine and cosine.", args: 1, context: "Universal", memberKind: "Function", params: ["angle in radians"], outputDesc: "tuple of (sin x, cos x)" },
+	"sqrt": { kind: "function", signature: "sqrt(x: generic) → generic", description: "Square root.", args: 1, context: "Universal", memberKind: "Function", params: ["value"], outputDesc: "square root of x" },
+	"tan": { kind: "function", signature: "tan(x: mono) → mono", description: "Tangent.", args: 1, context: "Universal", memberKind: "Function", params: ["angle in radians"], outputDesc: "tangent value" },
+	"trunc": { kind: "function", signature: "trunc(x: generic) → generic", description: "Truncate toward zero.", args: 1, context: "Universal", memberKind: "Function", params: ["value to truncate"], outputDesc: "integer part of x" },
+	"velocity": { kind: "function", signature: "velocity() → mono", description: "Reads the velocity property of the current note. Note context only.", args: 0, context: "Note", memberKind: "Function", outputDesc: "MIDI velocity (0–127)" },
+	"center": { kind: "function", signature: "center(x: stereo) → mono", description: "Average of left and right channels.", args: 1, context: "Universal", memberKind: "Function", params: ["stereo signal"], outputDesc: "(left + right) / 2" },
+	"swap": { kind: "function", signature: "swap(x: stereo) → stereo", description: "Exchange left and right channels.", args: 1, context: "Universal", memberKind: "Function", params: ["stereo signal"], outputDesc: "stereo with channels swapped" },
+	"pow": { kind: "function", signature: "pow(base: mono, exp: mono) → mono", description: "Base raised to exponent.", args: 2, context: "Universal", memberKind: "Function", params: ["base value", "exponent"], outputDesc: "base raised to the power of exp" },
+	"cell": { kind: "module", signature: "cell(value: dynamic generic typeless, init: static generic typeless) → dynamic generic typeless", description: "Stateful value. Maintains a value across samples.", args: 2, context: "Universal", memberKind: "Module", params: ["value to accumulate", "initial value (static)"], outputDesc: "accumulated value" },
+	"delay": { kind: "module", signature: "delay(value: dynamic generic typeless, samples: static mono number) → dynamic generic typeless", description: "Fixed delay line. Delay amount must be static.", args: 2, context: "Universal", memberKind: "Module", params: ["signal to delay", "delay in samples (static)"], outputDesc: "signal delayed by the given number of samples" },
+	"dyndelay": { kind: "module", signature: "dyndelay(value: dynamic generic typeless, samples: dynamic mono number, max: static mono number) → dynamic generic typeless", description: "Variable delay line. Takes dynamic delay amount and static maximum.", args: 3, context: "Universal", memberKind: "Module", params: ["signal to delay", "delay in samples (dynamic)", "maximum delay in samples (static)"], outputDesc: "signal delayed by the variable amount" },
 };
 
 /* ------------------------------------------------------------------ */
@@ -233,6 +235,14 @@ function buildBuiltInHover(name: string): string | undefined {
 	parts.push(`**${builtin.kind}** ${builtin.signature}`);
 	if (builtin.description) {
 		parts.push(builtin.description);
+	}
+	if (builtin.params && builtin.params.length > 0) {
+		parts.push("**inputs**");
+		parts.push(builtin.params.map(p => `- ${p}`).join("\n"));
+	}
+	if (builtin.outputDesc) {
+		parts.push("**output**");
+		parts.push(builtin.outputDesc);
 	}
 	return parts.join("\n\n");
 }

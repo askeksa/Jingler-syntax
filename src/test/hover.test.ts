@@ -621,4 +621,117 @@ module main -> (out)
 		assert.ok(content.includes("function"), `hover should show it's a built-in function: ${content}`);
 		assert.ok(content.includes("sin"), `hover should mention 'sin': ${content}`);
 	});
+
+	// --- Built-in parameter descriptions ---
+
+	test("hover on sin shows param and output descriptions", async () => {
+		const text = `module main -> (out)
+  out = sin(0.5)
+`;
+		const content = await hoverOn(text, 1, 8);
+		assert.ok(content != null);
+		assert.ok(content.includes("**inputs**"));
+		assert.ok(content.includes("angle in radians"));
+		assert.ok(content.includes("**output**"));
+		assert.ok(content.includes("sine value"));
+	});
+
+	test("hover on atan2 shows two param descriptions", async () => {
+		const text = `module main -> (out)
+  out = atan2(1, 0)
+`;
+		const content = await hoverOn(text, 1, 8);
+		assert.ok(content != null);
+		assert.ok(content.includes("y coordinate"));
+		assert.ok(content.includes("x coordinate"));
+		assert.ok(content.includes("angle in radians"));
+	});
+
+	test("hover on pow shows param and output descriptions", async () => {
+		const text = `module main -> (out)
+  out = pow(2, 3)
+`;
+		const content = await hoverOn(text, 1, 8);
+		assert.ok(content != null);
+		assert.ok(content.includes("base value"));
+		assert.ok(content.includes("exponent"));
+		assert.ok(content.includes("**output**"));
+	});
+
+	test("hover on cell shows param and output descriptions", async () => {
+		const text = `module main -> (out)
+  out = cell(0, 1)
+`;
+		const content = await hoverOn(text, 1, 8);
+		assert.ok(content != null);
+		assert.ok(content.includes("value to accumulate"));
+		assert.ok(content.includes("initial value"));
+		assert.ok(content.includes("accumulated value"));
+	});
+
+	test("hover on delay shows param and output descriptions", async () => {
+		const text = `module main (x) -> (out)
+  out = delay(x, 44100)
+`;
+		const content = await hoverOn(text, 1, 8);
+		assert.ok(content != null);
+		assert.ok(content.includes("signal to delay"));
+		assert.ok(content.includes("delay in samples"));
+		assert.ok(content.includes("**output**"));
+	});
+
+	test("hover on dyndelay shows three param descriptions", async () => {
+		const text = `module main (x) -> (out)
+  out = dyndelay(x, 100, 44100)
+`;
+		const content = await hoverOn(text, 1, 8);
+		assert.ok(content != null);
+		assert.ok(content.includes("signal to delay"));
+		assert.ok(content.includes("dynamic"));
+		assert.ok(content.includes("maximum delay"));
+	});
+
+	test("hover on gmdls shows param descriptions", async () => {
+		const text = `module main -> (out)
+  out = gmdls(1, 0)
+`;
+		const content = await hoverOn(text, 1, 8);
+		assert.ok(content != null);
+		assert.ok(content.includes("GM program number"));
+		assert.ok(content.includes("GM bank number"));
+		assert.ok(content.includes("MIDI note number"));
+	});
+
+	test("hover on zero-arg built-in shows only output description", async () => {
+		const text = `module main -> (out)
+  out = samplerate()
+`;
+		const content = await hoverOn(text, 1, 8);
+		assert.ok(content != null);
+		assert.ok(!content.includes("**inputs**"));
+		assert.ok(content.includes("**output**"));
+		assert.ok(content.includes("sample rate"));
+	});
+
+	test("hover on gate shows output description", async () => {
+		const text = `instrument test -> (out)
+  out = gate()
+`;
+		const content = await hoverOn(text, 1, 8);
+		assert.ok(content != null);
+		assert.ok(!content.includes("**inputs**"));
+		assert.ok(content.includes("**output**"));
+		assert.ok(content.includes("true while note is held"));
+	});
+
+	test("hover on random shows param descriptions", async () => {
+		const text = `module main -> (out)
+  out = random(0, 1)
+`;
+		const content = await hoverOn(text, 1, 8);
+		assert.ok(content != null);
+		assert.ok(content.includes("lower bound"));
+		assert.ok(content.includes("upper bound"));
+		assert.ok(content.includes("random value between"));
+	});
 });
